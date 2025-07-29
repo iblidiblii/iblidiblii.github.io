@@ -177,14 +177,27 @@
     drawPlayer();
   }
 
-  function animateMazeTransition() {
-    changing = true;
-    previousMaze = maze;
-    maze = generateMaze();
-    player = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
-    animationFrame = 0;
-    animate();
+ function animateMazeTransition() {
+  changing = true;
+
+  // Guardamos posición actual
+  const prevPlayerPos = { ...player };
+
+  previousMaze = maze;
+  maze = generateMaze();
+
+  // Restauramos la posición anterior si es válida
+  if (
+    prevPlayerPos.x >= 0 && prevPlayerPos.x < cols &&
+    prevPlayerPos.y >= 0 && prevPlayerPos.y < rows
+  ) {
+    player = prevPlayerPos;
   }
+
+  animationFrame = 0;
+  animate();
+}
+
 
   function animate() {
     ctx.clearRect(0, 0, width, height);
