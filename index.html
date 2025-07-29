@@ -39,8 +39,14 @@ let stepLimit = 15;
 function resizeCanvas() {
   canvas.width = window.innerWidth;
   canvas.height = window.innerHeight;
-  // Queremos ver unas 15 celdas en alto
   cellSize = Math.floor(canvas.height / 15);
+
+  // ⚠️ Recalcular posición inicial de la cámara centrada en jugador
+  camera.x = player.x * cellSize - canvas.width / 2 + cellSize / 2;
+  camera.y = player.y * cellSize - canvas.height / 2 + cellSize / 2;
+
+  // Evitar scroll en móviles
+  window.scrollTo(0, 0);
 }
 window.addEventListener("resize", resizeCanvas);
 resizeCanvas();
