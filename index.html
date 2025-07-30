@@ -1,13 +1,14 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
   <title>Laberinto GPS</title>
   <style>
     html, body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
-      height: 100%;
       background: black;
     }
     canvas {
@@ -16,209 +17,248 @@
     #counter {
       position: absolute;
       top: 10px;
-      right: 10px;
+      right: 20px;
       color: white;
+      font-size: 1.5em;
       font-family: sans-serif;
-      font-size: 18px;
-      background: rgba(0, 0, 0, 0.5);
-      padding: 6px 12px;
-      border-radius: 8px;
+      z-index: 10;
     }
-    .controls {
+    #controls {
       position: absolute;
       bottom: 10px;
-      left: 10px;
+      left: 50%;
+      transform: translateX(-50%);
+      z-index: 10;
     }
-    .controls button {
-      font-size: 16px;
-      margin: 4px;
-      padding: 10px;
+    button {
+      margin: 5px;
+      font-size: 1.2em;
     }
   </style>
 </head>
 <body>
-<canvas id="mazeCanvas"></canvas>
-<div id="counter">Nuevo laberinto en: 60</div>
-<div class="controls">
-  <button onclick="simulateMove('up')">Simular Arriba</button>
-  <button onclick="simulateMove('right')">Simular Derecha</button>
-</div>
-<script>
-const canvas = document.getElementById("mazeCanvas");
-const ctx = canvas.getContext("2d");
+  <div id="counter">60</div>
+  <div id="controls">
+    <button onclick="simulateMove(0, -1)">↑</button>
+    <button onclick="simulateMove(-1, 0)">←</button>
+    <button onclick="simulateMove(1, 0)">→</button>
+    <button onclick="simulateMove(0, 1)">↓</button>
+  </div>
+  <canvas id="mazeCanvas"></canvas>
 
-let cols = 31;
-let rows = 31;
-let cellSize = 20;
-let maze = [];
-let currentMaze = [];
-let player = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
-let exitCell = { x: 0, y: 0 };
-let visibleCells = 15;
-let transitionDuration = 1000;
-let transitionStart = null;
-let transitioning = false;
-let timer = 60;
-let gpsOrigin = null;
-let lastPlayerPos = { ...player };
+  <script>
+    const canvas = document.getElementById("mazeCanvas");
+    const ctx = canvas.getContext("2d");
+    const counterEl = document.getElementById("counter");
 
-canvas.width = window.innerWidth;
-canvas.height = window.innerHeight;
+    let maze = [];
+    const cols = 21;
+    const rows = 21;
+    const cellSize = 20;
+    let viewportSize = 7; // número de celdas visibles
+    let player = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
 
-class Cell {
-  constructor(x, y) {
-    this.x = x;
-    this.y = y;
-    this.walls = [true, true, true, true];
-    this.visited = false;
-  }
+    let countdown = 60;
 
-  draw(offsetX, offsetY, color = "white") {
-    const x = this.x * cellSize - offsetX;
-    const y = this.y * cellSize - offsetY;
-    ctx.strokeStyle = color;
-    ctx.lineWidth = 1;
-
-    if (this.walls[0]) drawLine(x, y, x + cellSize, y);        // top
-    if (this.walls[1]) drawLine(x + cellSize, y, x + cellSize, y + cellSize); // right
-    if (this.walls[2]) drawLine(x + cellSize, y + cellSize, x, y + cellSize); // bottom
-    if (this.walls[3]) drawLine(x, y + cellSize, x, y);        // left
-  }
-}
-
-function drawLine(x1, y1, x2, y2) {
-  ctx.beginPath();
-  ctx.moveTo(x1, y1);
-  ctx.lineTo(x2, y2);
-  ctx.stroke();
-}
-
-function index(x, y) {
-  if (x < 0 || y < 0 || x >= cols || y >= rows) return -1;
-  return x + y * cols;
-}
-
-function generateMaze() {
-  maze = Array(cols * rows).fill().map((_, i) => new Cell(i % cols, Math.floor(i / cols)));
-  let stack = [];
-  let current = maze[0];
-  current.visited = true;
-
-  while (true) {
-    const neighbors = [];
-    const directions = [
-      [0, -1, 0],
-      [1, 0, 1],
-      [0, 1, 2],
-      [-1, 0, 3]
-    ];
-
-    for (let [dx, dy, dir] of directions) {
-      const nx = current.x + dx;
-      const ny = current.y + dy;
-      const neighbor = maze[index(nx, ny)];
-      if (neighbor && !neighbor.visited) neighbors.push([neighbor, dir]);
+    function resizeCanvas() {
+      canvas.width = window.innerWidth;
+      canvas.height = window.innerHeight;
     }
 
-    if (neighbors.length > 0) {
-      const [next, dir] = neighbors[Math.floor(Math.random() * neighbors.length)];
-      current.walls[dir] = false;
-      next.walls[(dir + 2) % 4] = false;
-      stack.push(current);
-      current = next;
-      current.visited = true;
-    } else if (stack.length > 0) {
-      current = stack.pop();
-    } else break;
-  }
+    window.addEventListener("resize", resizeCanvas);
+    resizeCanvas();
 
-  exitCell = { x: Math.floor(Math.random() * cols), y: 0 };
-  maze[index(exitCell.x, exitCell.y)].walls[0] = false;
-  currentMaze = maze;
-}
+    function generateMaze() {
+      // Inicializar el laberinto con paredes
+      maze = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => ({ top: true, right: true, bottom: true, left: true, visited: false }))
+      );
 
-function drawMaze() {
-  ctx.clearRect(0, 0, canvas.width, canvas.height);
-  const offsetX = (player.x * cellSize) - canvas.width / 2 + cellSize / 2;
-  const offsetY = (player.y * cellSize) - canvas.height / 2 + cellSize / 2;
+      function removeWall(a, b) {
+        const dx = b.x - a.x;
+        const dy = b.y - a.y;
+        if (dx === 1) {
+          a.right = false;
+          b.left = false;
+        } else if (dx === -1) {
+          a.left = false;
+          b.right = false;
+        } else if (dy === 1) {
+          a.bottom = false;
+          b.top = false;
+        } else if (dy === -1) {
+          a.top = false;
+          b.bottom = false;
+        }
+      }
 
-  for (let cell of currentMaze) cell.draw(offsetX, offsetY);
-  ctx.fillStyle = "red";
-  ctx.beginPath();
-  ctx.arc(canvas.width / 2, canvas.height / 2, cellSize / 4, 0, Math.PI * 2);
-  ctx.fill();
+      function carve(x, y) {
+        const directions = [
+          [0, -1], [1, 0], [0, 1], [-1, 0]
+        ].sort(() => Math.random() - 0.5);
 
-  ctx.fillStyle = "lime";
-  const exitX = exitCell.x * cellSize - offsetX;
-  const exitY = exitCell.y * cellSize - offsetY;
-  ctx.beginPath();
-  ctx.arc(exitX + cellSize / 2, exitY + cellSize / 2, 4, 0, Math.PI * 2);
-  ctx.fill();
-}
+        maze[y][x].visited = true;
 
-function canMove(x, y) {
-  if (x < 0 || y < 0 || x >= cols || y >= rows) return false;
-  return true;
-}
+        for (const [dx, dy] of directions) {
+          const nx = x + dx;
+          const ny = y + dy;
+          if (
+            nx >= 0 && nx < cols &&
+            ny >= 0 && ny < rows &&
+            !maze[ny][nx].visited
+          ) {
+            removeWall(maze[y][x], maze[ny][nx]);
+            carve(nx, ny);
+          }
+        }
+      }
 
-function movePlayer(dir) {
-  const cell = currentMaze[index(player.x, player.y)];
-  let dx = 0, dy = 0, wallIndex;
+      carve(Math.floor(cols / 2), Math.floor(rows / 2));
+    }
 
-  if (dir === "up") [dy, wallIndex] = [-1, 0];
-  if (dir === "right") [dx, wallIndex] = [1, 1];
-  if (dir === "down") [dy, wallIndex] = [1, 2];
-  if (dir === "left") [dx, wallIndex] = [-1, 3];
+    function drawMaze() {
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  const nx = player.x + dx;
-  const ny = player.y + dy;
+      const zoom = canvas.height / (viewportSize * cellSize);
 
-  if (!canMove(nx, ny)) return;
-  if (!cell.walls[wallIndex]) player = { x: nx, y: ny };
-}
+      const startX = player.x - Math.floor(viewportSize / 2);
+      const startY = player.y - Math.floor(viewportSize / 2);
 
-function simulateMove(direction) {
-  movePlayer(direction);
-  drawMaze();
-}
+      ctx.save();
+      ctx.scale(zoom, zoom);
+      ctx.translate(
+        (canvas.width / zoom) / 2 - (player.x * cellSize + cellSize / 2),
+        (canvas.height / zoom) / 2 - (player.y * cellSize + cellSize / 2)
+      );
 
-function updateTimer() {
-  timer--;
-  document.getElementById("counter").innerText = `Nuevo laberinto en: ${timer}`;
-  if (timer <= 0) {
+      ctx.strokeStyle = "white";
+      ctx.lineWidth = 1;
+
+      for (let y = 0; y < rows; y++) {
+        for (let x = 0; x < cols; x++) {
+          const cell = maze[y][x];
+          const px = x * cellSize;
+          const py = y * cellSize;
+
+          if (cell.top) {
+            ctx.beginPath();
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + cellSize, py);
+            ctx.stroke();
+          }
+          if (cell.right) {
+            ctx.beginPath();
+            ctx.moveTo(px + cellSize, py);
+            ctx.lineTo(px + cellSize, py + cellSize);
+            ctx.stroke();
+          }
+          if (cell.bottom) {
+            ctx.beginPath();
+            ctx.moveTo(px + cellSize, py + cellSize);
+            ctx.lineTo(px, py + cellSize);
+            ctx.stroke();
+          }
+          if (cell.left) {
+            ctx.beginPath();
+            ctx.moveTo(px, py + cellSize);
+            ctx.lineTo(px, py);
+            ctx.stroke();
+          }
+        }
+      }
+
+      // Dibujar jugador
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(
+        player.x * cellSize + cellSize / 2,
+        player.y * cellSize + cellSize / 2,
+        cellSize / 4,
+        0,
+        Math.PI * 2
+      );
+      ctx.fill();
+
+      ctx.restore();
+    }
+
+    function canMoveTo(nx, ny) {
+      if (nx < 0 || ny < 0 || nx >= cols || ny >= rows) return false;
+
+      const dx = nx - player.x;
+      const dy = ny - player.y;
+      const cell = maze[player.y][player.x];
+
+      if (dx === 1 && !cell.right) return true;
+      if (dx === -1 && !cell.left) return true;
+      if (dy === 1 && !cell.bottom) return true;
+      if (dy === -1 && !cell.top) return true;
+
+      return false;
+    }
+
+    function move(dx, dy) {
+      const nx = player.x + dx;
+      const ny = player.y + dy;
+
+      if (canMoveTo(nx, ny)) {
+        player.x = nx;
+        player.y = ny;
+        drawMaze();
+      }
+    }
+
+    function simulateMove(dx, dy) {
+      move(dx, dy);
+    }
+
+    function updateCountdown() {
+      countdown--;
+      if (countdown <= 0) {
+        countdown = 60;
+        generateMaze();
+        drawMaze();
+      }
+      counterEl.textContent = countdown;
+      setTimeout(updateCountdown, 1000);
+    }
+
+    // GPS tracking (simplificado a movimiento en 1 unidad si cambia lat/lon)
+    let lastCoords = null;
+
+    function handleGPS(position) {
+      if (!lastCoords) {
+        lastCoords = position.coords;
+        return;
+      }
+
+      const latDiff = position.coords.latitude - lastCoords.latitude;
+      const lonDiff = position.coords.longitude - lastCoords.longitude;
+
+      if (Math.abs(latDiff) > 0.00001 || Math.abs(lonDiff) > 0.00001) {
+        if (Math.abs(latDiff) > Math.abs(lonDiff)) {
+          move(0, latDiff > 0 ? 1 : -1);
+        } else {
+          move(lonDiff > 0 ? 1 : -1, 0);
+        }
+        lastCoords = position.coords;
+      }
+    }
+
+    function initGPS() {
+      if ("geolocation" in navigator) {
+        navigator.geolocation.watchPosition(handleGPS, console.error, {
+          enableHighAccuracy: true,
+          maximumAge: 0,
+          timeout: 10000
+        });
+      }
+    }
+
     generateMaze();
-    timer = 60;
-  }
-  setTimeout(updateTimer, 1000);
-}
-
-function watchPosition() {
-  if (!navigator.geolocation) return;
-  navigator.geolocation.watchPosition(pos => {
-    const { latitude, longitude } = pos.coords;
-
-    if (!gpsOrigin) {
-      gpsOrigin = { lat: latitude, lon: longitude };
-      return;
-    }
-
-    const dx = longitude - gpsOrigin.lon;
-    const dy = latitude - gpsOrigin.lat;
-    const threshold = 0.00005;
-
-    if (dy < -threshold) simulateMove("up");
-    else if (dy > threshold) simulateMove("down");
-    else if (dx < -threshold) simulateMove("left");
-    else if (dx > threshold) simulateMove("right");
-
-    gpsOrigin = { lat: latitude, lon: longitude };
-  }, console.error, { enableHighAccuracy: true, maximumAge: 1000 });
-}
-
-generateMaze();
-drawMaze();
-updateTimer();
-watchPosition();
-</script>
+    drawMaze();
+    updateCountdown();
+    initGPS();
+  </script>
 </body>
 </html>
