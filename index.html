@@ -1,8 +1,8 @@
 <!DOCTYPE html>
-<html lang="en">
+<html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
   <title>Laberinto GPS</title>
   <style>
     html, body {
@@ -16,243 +16,263 @@
     }
     #info {
       position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
+      top: 0;
+      right: 0;
+      background: rgba(0,0,0,0.6);
+      color: lime;
+      padding: 5px;
       font-family: monospace;
       font-size: 14px;
-      background: rgba(0, 0, 0, 0.6);
-      padding: 6px 8px;
-      border-radius: 6px;
+      z-index: 10;
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
-  <div id="info">Lat: --<br>Lon: --<br>Pasos: 0</div>
+  <canvas id="gameCanvas"></canvas>
+  <div id="info">Cargando...</div>
+
   <script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    let width, height;
-    function resizeCanvas() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
-    }
-    window.addEventListener("resize", resizeCanvas);
-    resizeCanvas();
+    const canvas = document.getElementById('gameCanvas');
+    const ctx = canvas.getContext('2d');
+    const info = document.getElementById('info');
 
-    const cols = 15;
-    const rows = 15;
+    canvas.width = window.innerWidth;
+    canvas.height = window.innerHeight;
+
+    const mazeCols = 25;
+    const mazeRows = 25;
+    let cellSize;
+
     const maze = [];
-    const cellSize = 40;
-    const visibleCells = 7;
-    const halfVisible = Math.floor(visibleCells / 2);
-
     let player = {
-      x: Math.floor(cols / 2),
-      y: Math.floor(rows / 2),
-      lat: null,
-      lon: null,
-      steps: 0,
-      angle: 0
+      x: Math.floor(mazeCols / 2),
+      y: Math.floor(mazeRows / 2),
+      dir: 0
     };
+    let exitCell = { x: mazeCols - 1, y: mazeRows - 1 };
 
-    let lastLat = null;
-    let lastLon = null;
-    let exitCell = { x: 0, y: 0 };
+    let steps = 0;
+    let lastPosition = null;
+    let currentHeading = 0;
 
-    function createMaze() {
-      for (let y = 0; y < rows; y++) {
+    function generateMaze() {
+      // Inicializa celdas
+      for (let y = 0; y < mazeRows; y++) {
         maze[y] = [];
-        for (let x = 0; x < cols; x++) {
-          maze[y][x] = { top: true, right: true, bottom: true, left: true };
+        for (let x = 0; x < mazeCols; x++) {
+          maze[y][x] = { top: true, right: true, bottom: true, left: true, visited: false };
         }
       }
 
-      function carve(x, y, visited = {}) {
-        visited[`${x},${y}`] = true;
-        const dirs = ["top", "right", "bottom", "left"].sort(() => Math.random() - 0.5);
-        for (const dir of dirs) {
-          let nx = x, ny = y;
-          if (dir === "top") ny--;
-          else if (dir === "right") nx++;
-          else if (dir === "bottom") ny++;
-          else if (dir === "left") nx--;
+      // DFS
+      const stack = [];
+      let current = { x: player.x, y: player.y };
+      maze[current.y][current.x].visited = true;
+      stack.push(current);
 
-          if (nx >= 0 && nx < cols && ny >= 0 && ny < rows && !visited[`${nx},${ny}`]) {
-            maze[y][x][dir] = false;
-            if (dir === "top") maze[ny][nx].bottom = false;
-            else if (dir === "right") maze[ny][nx].left = false;
-            else if (dir === "bottom") maze[ny][nx].top = false;
-            else if (dir === "left") maze[ny][nx].right = false;
-            carve(nx, ny, visited);
+      const directions = [
+        { dx: 0, dy: -1, wall: 'top', opposite: 'bottom' },
+        { dx: 1, dy: 0, wall: 'right', opposite: 'left' },
+        { dx: 0, dy: 1, wall: 'bottom', opposite: 'top' },
+        { dx: -1, dy: 0, wall: 'left', opposite: 'right' }
+      ];
+
+      while (stack.length > 0) {
+        const current = stack[stack.length - 1];
+        const { x, y } = current;
+        const unvisited = [];
+
+        for (const dir of directions) {
+          const nx = x + dir.dx;
+          const ny = y + dir.dy;
+          if (nx >= 0 && nx < mazeCols && ny >= 0 && ny < mazeRows && !maze[ny][nx].visited) {
+            unvisited.push({ x: nx, y: ny, from: dir });
           }
         }
-      }
 
-      carve(player.x, player.y);
-      exitCell = { x: cols - 1, y: rows - 1 };
+        if (unvisited.length > 0) {
+          const next = unvisited[Math.floor(Math.random() * unvisited.length)];
+          maze[y][x][next.from.wall] = false;
+          maze[next.y][next.x][next.from.opposite] = false;
+          maze[next.y][next.x].visited = true;
+          stack.push({ x: next.x, y: next.y });
+        } else {
+          stack.pop();
+        }
+      }
     }
 
     function drawMaze() {
-      const startX = player.x - halfVisible;
-      const startY = player.y - halfVisible;
-      ctx.clearRect(0, 0, width, height);
-      ctx.save();
-      ctx.translate(width / 2, height / 2);
-      ctx.rotate(player.angle);
-      ctx.translate(-cellSize / 2, -cellSize / 2);
+      ctx.clearRect(0, 0, canvas.width, canvas.height);
+      cellSize = Math.min(canvas.height / 10, canvas.width / 10);
+      const offsetX = canvas.width / 2 - player.x * cellSize - cellSize / 2;
+      const offsetY = canvas.height / 2 - player.y * cellSize - cellSize / 2;
 
-      for (let y = 0; y < visibleCells; y++) {
-        for (let x = 0; x < visibleCells; x++) {
-          const mazeX = x + startX;
-          const mazeY = y + startY;
-          const cell = maze[mazeY]?.[mazeX];
-          if (!cell) continue;
+      ctx.strokeStyle = 'white';
+      ctx.lineWidth = 2;
 
-          const px = (x - halfVisible) * cellSize;
-          const py = (y - halfVisible) * cellSize;
+      for (let y = 0; y < mazeRows; y++) {
+        for (let x = 0; x < mazeCols; x++) {
+          const cell = maze[y][x];
+          const px = x * cellSize + offsetX;
+          const py = y * cellSize + offsetY;
 
-          ctx.strokeStyle = "white";
-          ctx.lineWidth = 2;
-          ctx.beginPath();
           if (cell.top) {
+            ctx.beginPath();
             ctx.moveTo(px, py);
             ctx.lineTo(px + cellSize, py);
+            ctx.stroke();
           }
           if (cell.right) {
+            ctx.beginPath();
             ctx.moveTo(px + cellSize, py);
             ctx.lineTo(px + cellSize, py + cellSize);
+            ctx.stroke();
           }
           if (cell.bottom) {
-            ctx.moveTo(px + cellSize, py + cellSize);
-            ctx.lineTo(px, py + cellSize);
+            ctx.beginPath();
+            ctx.moveTo(px, py + cellSize);
+            ctx.lineTo(px + cellSize, py + cellSize);
+            ctx.stroke();
           }
           if (cell.left) {
-            ctx.moveTo(px, py + cellSize);
-            ctx.lineTo(px, py);
-          }
-          ctx.stroke();
-
-          // Exit cell
-          if (mazeX === exitCell.x && mazeY === exitCell.y) {
-            ctx.fillStyle = "lime";
             ctx.beginPath();
-            ctx.arc(px + cellSize / 2, py + cellSize / 2, 5, 0, Math.PI * 2);
+            ctx.moveTo(px, py);
+            ctx.lineTo(px, py + cellSize);
+            ctx.stroke();
+          }
+
+          // Salida
+          if (x === exitCell.x && y === exitCell.y) {
+            ctx.fillStyle = 'green';
+            ctx.beginPath();
+            ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
             ctx.fill();
           }
         }
       }
+    }
 
-      // Player triangle
-      ctx.fillStyle = "red";
+    function drawPlayer() {
+      const offsetX = canvas.width / 2;
+      const offsetY = canvas.height / 2;
+
+      const size = cellSize * 0.5;
+      const angle = currentHeading * Math.PI / 180;
+
+      ctx.save();
+      ctx.translate(offsetX, offsetY);
+      ctx.rotate(angle);
+
       ctx.beginPath();
-      ctx.moveTo(0, -10);
-      ctx.lineTo(-7, 10);
-      ctx.lineTo(7, 10);
+      ctx.moveTo(0, -size);             // punta
+      ctx.lineTo(size * 0.5, size);     // base derecha
+      ctx.lineTo(-size * 0.5, size);    // base izquierda
       ctx.closePath();
-      ctx.fill();
 
+      ctx.fillStyle = 'red';
+      ctx.fill();
       ctx.restore();
     }
 
-    function updateInfo() {
-      document.getElementById("info").innerHTML =
-        `Lat: ${player.lat?.toFixed(6) ?? "--"}<br>` +
-        `Lon: ${player.lon?.toFixed(6) ?? "--"}<br>` +
-        `Pasos: ${player.steps}`;
-    }
+    function updatePosition(pos) {
+      const { latitude, longitude } = pos.coords;
 
-    function distanceInMeters(lat1, lon1, lat2, lon2) {
-  const earthRadius = 6371000; // metros
-  const dLat = (lat2 - lat1) * Math.PI / 180;
-  const dLon = (lon2 - lon1) * Math.PI / 180;
-  const meanLat = (lat1 + lat2) / 2 * Math.PI / 180;
+      if (lastPosition) {
+        const d = getDistanceFromLatLonInMeters(
+          lastPosition.latitude,
+          lastPosition.longitude,
+          latitude,
+          longitude
+        );
 
-  const x = dLon * Math.cos(meanLat);
-  const distance = Math.sqrt(x * x + dLat * dLat) * earthRadius;
-  return distance;
-}
+        // Direccion del jugador
+        const headingRad = currentHeading * Math.PI / 180;
+        const dx = Math.cos(headingRad);
+        const dy = Math.sin(headingRad);
 
+        // Proyección del desplazamiento en la dirección del jugador
+        const earthRadius = 6378137; // m
+        const deltaLat = (latitude - lastPosition.latitude) * Math.PI / 180;
+        const deltaLon = (longitude - lastPosition.longitude) * Math.PI / 180;
+        const avgLat = ((latitude + lastPosition.latitude) / 2) * Math.PI / 180;
 
-    function angleBetween(lat1, lon1, lat2, lon2) {
-      const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
-      const x = Math.cos(lat1) * Math.sin(lat2) -
-                Math.sin(lat1) * Math.cos(lat2) * Math.cos(lon2 - lon1);
-      return Math.atan2(y, x);
+        const dxMeters = earthRadius * deltaLon * Math.cos(avgLat);
+        const dyMeters = earthRadius * deltaLat;
+
+        const projection = dx * dxMeters + dy * dyMeters;
+
+        if (projection > 0.2) {
+          moveForward();
+          steps++;
+        }
+      }
+
+      lastPosition = { latitude, longitude };
     }
 
     function moveForward() {
-      const dx = Math.round(Math.cos(player.angle));
-      const dy = Math.round(Math.sin(player.angle));
-      const nx = player.x + dx;
-      const ny = player.y + dy;
+      const angle = currentHeading * Math.PI / 180;
+      const dirX = Math.round(Math.cos(angle));
+      const dirY = Math.round(Math.sin(angle));
 
-      if (
-        nx >= 0 && nx < cols &&
-        ny >= 0 && ny < rows
-      ) {
-        const current = maze[player.y][player.x];
+      const newX = player.x + dirX;
+      const newY = player.y + dirY;
+
+      if (newX >= 0 && newX < mazeCols && newY >= 0 && newY < mazeRows) {
+        const from = maze[player.y][player.x];
         if (
-          (dx === 1 && !current.right) ||
-          (dx === -1 && !current.left) ||
-          (dy === 1 && !current.bottom) ||
-          (dy === -1 && !current.top)
+          (dirY === -1 && !from.top) ||
+          (dirY === 1 && !from.bottom) ||
+          (dirX === -1 && !from.left) ||
+          (dirX === 1 && !from.right)
         ) {
-          player.x = nx;
-          player.y = ny;
-          player.steps++;
+          player.x = newX;
+          player.y = newY;
         }
       }
     }
 
-    function onPosition(pos) {
-      const { latitude, longitude } = pos.coords;
-      if (!player.lat || !player.lon) {
-        player.lat = latitude;
-        player.lon = longitude;
-        lastLat = latitude;
-        lastLon = longitude;
-        return;
-      }
-
-      const dist = distanceInMeters(lastLat, lastLon, latitude, longitude);
-      const angle = angleBetween(lastLat, lastLon, latitude, longitude);
-      const diff = Math.abs(((angle - player.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
-
-      if (dist >= 0.2 && diff < Math.PI / 4) {
-        moveForward();
-        lastLat = latitude;
-        lastLon = longitude;
-      }
-
-      player.lat = latitude;
-      player.lon = longitude;
+    function getDistanceFromLatLonInMeters(lat1, lon1, lat2, lon2) {
+      const R = 6378137;
+      const dLat = (lat2 - lat1) * Math.PI / 180;
+      const dLon = (lon2 - lon1) * Math.PI / 180;
+      const a =
+        Math.sin(dLat / 2) * Math.sin(dLat / 2) +
+        Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) *
+        Math.sin(dLon / 2) * Math.sin(dLon / 2);
+      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+      return R * c;
     }
 
-    navigator.geolocation.watchPosition(onPosition, console.error, {
-      enableHighAccuracy: true,
-      maximumAge: 0,
-      timeout: 5000,
-    });
-
-    window.addEventListener("deviceorientation", (e) => {
-      if (e.absolute || e.alpha !== null) {
-        const angle = (360 - e.alpha) * Math.PI / 180;
-        player.angle = angle;
-      }
-    });
-
-    function animate() {
+    function render() {
       drawMaze();
-      updateInfo();
-      requestAnimationFrame(animate);
+      drawPlayer();
+      info.innerText =
+        `Pos: (${player.x}, ${player.y})\nPasos: ${steps}\nDir: ${Math.round(currentHeading)}°`;
+      requestAnimationFrame(render);
     }
 
-    createMaze();
-    animate();
+    generateMaze();
+    render();
+
+    if (window.DeviceOrientationEvent) {
+      window.addEventListener("deviceorientation", function(event) {
+        if (event.alpha != null) {
+          currentHeading = 360 - event.alpha;
+        }
+      }, true);
+    }
+
+    if (navigator.geolocation) {
+      navigator.geolocation.watchPosition(updatePosition, console.error, {
+        enableHighAccuracy: true,
+        maximumAge: 0,
+        timeout: 2000
+      });
+    } else {
+      alert("Tu navegador no soporta geolocalización.");
+    }
   </script>
 </body>
 </html>
