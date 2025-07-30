@@ -132,8 +132,8 @@ function drawMaze() {
   ctx.fillRect((cols - 1) * cellSize + 10, (rows - 1) * cellSize + 10, 10, 10);
 
   // Jugador
-  const px = (player.x + 0.5) * cellSize;
-  const py = (player.y + 0.5) * cellSize;
+  const px = (player.x + 0.3) * cellSize;
+  const py = (player.y + 0.3) * cellSize;
 
   ctx.translate(px, py);
   ctx.rotate((player.dir ?? 0) * Math.PI / 180);
@@ -182,7 +182,7 @@ function tryMove(lat, lon) {
   const forwardY = -Math.cos(angle * Math.PI / 180);
   const dot = (dx * forwardX + dy * forwardY) / dist;
 
-  if (dist > 0.2 && dot > 0.5) {
+  if (dist > 0.05 && dot > 0.1) {
     const [stepX, stepY] = getDirectionStep(angle);
     const nx = player.x + stepX;
     const ny = player.y + stepY;
