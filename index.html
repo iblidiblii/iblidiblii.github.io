@@ -1,9 +1,9 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no" />
   <title>Laberinto GPS</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
   <style>
     html, body {
       margin: 0;
@@ -13,176 +13,246 @@
     }
     canvas {
       display: block;
-      touch-action: none;
-    }
-    #info {
-      position: absolute;
-      top: 10px;
-      left: 10px;
-      color: white;
-      font-family: sans-serif;
-      z-index: 10;
     }
   </style>
 </head>
 <body>
-<canvas id="canvas"></canvas>
-<div id="info">Lat: 0<br>Lon: 0<br>Pasos: 0</div>
+<canvas id="gameCanvas"></canvas>
+
 <script>
-  const canvas = document.getElementById('canvas');
-  const ctx = canvas.getContext('2d');
-  let width, height;
-  function resize() {
-    width = window.innerWidth;
-    height = window.innerHeight;
-    canvas.width = width;
-    canvas.height = height;
-  }
-  window.addEventListener('resize', resize);
-  resize();
+const canvas = document.getElementById("gameCanvas");
+const ctx = canvas.getContext("2d");
+let width, height;
 
-  const cellSize = 10; // tamaño del laberinto en celdas
-  const maze = [];
-  const visited = [];
-  const directions = [[0,-1],[1,0],[0,1],[-1,0]];
-  const player = {
-    x: Math.floor(cellSize / 2),
-    y: Math.floor(cellSize / 2),
-    screenX: 0,
-    screenY: 0,
-    angle: 0
-  };
-  let steps = 0;
-  let prevLat = null, prevLon = null;
-  let exitCell = {x: 0, y: 0};
+function resizeCanvas() {
+  width = window.innerWidth;
+  height = window.innerHeight;
+  canvas.width = width;
+  canvas.height = height;
+}
+window.addEventListener("resize", resizeCanvas);
+resizeCanvas();
 
-  function generateMaze() {
-    for (let y = 0; y < cellSize; y++) {
-      maze[y] = [];
-      visited[y] = [];
-      for (let x = 0; x < cellSize; x++) {
-        maze[y][x] = [true, true, true, true]; // top, right, bottom, left
-        visited[y][x] = false;
-      }
-    }
-    function dfs(x, y) {
-      visited[y][x] = true;
-      const dirs = directions.map((_, i) => i).sort(() => Math.random() - 0.5);
-      for (const i of dirs) {
-        const nx = x + directions[i][0];
-        const ny = y + directions[i][1];
-        if (nx >= 0 && ny >= 0 && nx < cellSize && ny < cellSize && !visited[ny][nx]) {
-          maze[y][x][i] = false;
-          maze[ny][nx][(i + 2) % 4] = false;
-          dfs(nx, ny);
-        }
-      }
-    }
-    dfs(player.x, player.y);
-    // salida en esquina
-    exitCell = {x: cellSize - 1, y: cellSize - 1};
-    maze[exitCell.y][exitCell.x][1] = false; // abrir derecha
+const cols = 21, rows = 21;
+const cellSize = 40;
+let maze = [];
+let stack = [];
+
+class Cell {
+  constructor(x, y) {
+    this.x = x;
+    this.y = y;
+    this.walls = [true, true, true, true]; // top, right, bottom, left
+    this.visited = false;
   }
 
-  function drawMaze() {
-    const scale = Math.min(width, height) / 10;
-    const offsetX = width / 2 - player.x * scale;
-    const offsetY = height / 2 - player.y * scale;
+  checkNeighbors() {
+    const neighbors = [];
 
-    ctx.clearRect(0, 0, width, height);
-    ctx.strokeStyle = 'white';
+    const top = maze[index(this.x, this.y - 1)];
+    const right = maze[index(this.x + 1, this.y)];
+    const bottom = maze[index(this.x, this.y + 1)];
+    const left = maze[index(this.x - 1, this.y)];
+
+    if (top && !top.visited) neighbors.push(top);
+    if (right && !right.visited) neighbors.push(right);
+    if (bottom && !bottom.visited) neighbors.push(bottom);
+    if (left && !left.visited) neighbors.push(left);
+
+    if (neighbors.length > 0) {
+      return neighbors[Math.floor(Math.random() * neighbors.length)];
+    }
+    return undefined;
+  }
+}
+
+function index(x, y) {
+  if (x < 0 || y < 0 || x >= cols || y >= rows) return -1;
+  return x + y * cols;
+}
+
+function removeWalls(a, b) {
+  const x = a.x - b.x;
+  if (x === 1) {
+    a.walls[3] = false;
+    b.walls[1] = false;
+  } else if (x === -1) {
+    a.walls[1] = false;
+    b.walls[3] = false;
+  }
+
+  const y = a.y - b.y;
+  if (y === 1) {
+    a.walls[0] = false;
+    b.walls[2] = false;
+  } else if (y === -1) {
+    a.walls[2] = false;
+    b.walls[0] = false;
+  }
+}
+
+function generateMaze() {
+  maze = [];
+  for (let y = 0; y < rows; y++) {
+    for (let x = 0; x < cols; x++) {
+      maze.push(new Cell(x, y));
+    }
+  }
+
+  const start = maze[0];
+  stack = [start];
+  start.visited = true;
+
+  while (stack.length > 0) {
+    const current = stack[stack.length - 1];
+    const next = current.checkNeighbors();
+
+    if (next) {
+      next.visited = true;
+      stack.push(next);
+      removeWalls(current, next);
+    } else {
+      stack.pop();
+    }
+  }
+}
+generateMaze();
+
+let player = {
+  x: Math.floor(cols / 2),
+  y: Math.floor(rows / 2),
+  dir: 0, // radians
+  steps: 0
+};
+
+let exit = {
+  x: cols - 1,
+  y: Math.floor(rows / 2)
+};
+
+let lastLat = null, lastLon = null;
+
+function drawMaze(centerX, centerY) {
+  ctx.clearRect(0, 0, width, height);
+
+  const viewSize = Math.min(width, height);
+  const zoom = viewSize / (cellSize * 7); // muestra 7x7 celdas
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.scale(zoom, zoom);
+  ctx.translate(-centerX * cellSize - cellSize / 2, -centerY * cellSize - cellSize / 2);
+
+  maze.forEach(cell => {
+    const x = cell.x * cellSize;
+    const y = cell.y * cellSize;
+
+    ctx.strokeStyle = "#fff";
     ctx.lineWidth = 2;
-    ctx.beginPath();
-    for (let y = 0; y < cellSize; y++) {
-      for (let x = 0; x < cellSize; x++) {
-        const [top, right, bottom, left] = maze[y][x];
-        const sx = x * scale + offsetX;
-        const sy = y * scale + offsetY;
-        if (top) { ctx.moveTo(sx, sy); ctx.lineTo(sx + scale, sy); }
-        if (right) { ctx.moveTo(sx + scale, sy); ctx.lineTo(sx + scale, sy + scale); }
-        if (bottom) { ctx.moveTo(sx + scale, sy + scale); ctx.lineTo(sx, sy + scale); }
-        if (left) { ctx.moveTo(sx, sy + scale); ctx.lineTo(sx, sy); }
-      }
-    }
-    ctx.stroke();
 
-    // salida
-    ctx.fillStyle = 'lime';
-    ctx.beginPath();
-    ctx.arc(exitCell.x * scale + offsetX + scale / 2, exitCell.y * scale + offsetY + scale / 2, 5, 0, Math.PI * 2);
-    ctx.fill();
-
-    // jugador (triángulo)
-    const px = player.x * scale + offsetX + scale / 2;
-    const py = player.y * scale + offsetY + scale / 2;
-    const r = scale * 0.4;
-    ctx.fillStyle = 'red';
-    ctx.beginPath();
-    ctx.moveTo(px + r * Math.cos(player.angle), py + r * Math.sin(player.angle));
-    ctx.lineTo(px + r * 0.5 * Math.cos(player.angle + Math.PI * 2 / 3), py + r * 0.5 * Math.sin(player.angle + Math.PI * 2 / 3));
-    ctx.lineTo(px + r * 0.5 * Math.cos(player.angle - Math.PI * 2 / 3), py + r * 0.5 * Math.sin(player.angle - Math.PI * 2 / 3));
-    ctx.closePath();
-    ctx.fill();
-  }
-
-  function canMove(dx, dy) {
-    const nx = player.x + dx;
-    const ny = player.y + dy;
-    if (nx < 0 || ny < 0 || nx >= cellSize || ny >= cellSize) return false;
-    if (dx === 1 && maze[player.y][player.x][1]) return false;
-    if (dx === -1 && maze[player.y][player.x][3]) return false;
-    if (dy === 1 && maze[player.y][player.x][2]) return false;
-    if (dy === -1 && maze[player.y][player.x][0]) return false;
-    return true;
-  }
-
-  function updatePosition(lat, lon) {
-    const info = document.getElementById("info");
-    info.innerHTML = `Lat: ${lat.toFixed(6)}<br>Lon: ${lon.toFixed(6)}<br>Pasos: ${steps}`;
-    if (prevLat !== null && prevLon !== null) {
-      const dLat = (lat - prevLat) * 111139; // approx meters
-      const dLon = (lon - prevLon) * 111139 * Math.cos(lat * Math.PI / 180);
-      const dist = Math.sqrt(dLat * dLat + dLon * dLon);
-      const angle = Math.atan2(dLat, dLon);
-      const diff = Math.abs((angle - player.angle + Math.PI * 3) % (2 * Math.PI) - Math.PI);
-      if (dist > 0.5 && diff < Math.PI / 4) {
-        // mover hacia adelante
-        const dx = Math.round(Math.cos(player.angle));
-        const dy = Math.round(Math.sin(player.angle));
-        if (canMove(dx, dy)) {
-          player.x += dx;
-          player.y += dy;
-          steps++;
-        }
-      }
-    }
-    prevLat = lat;
-    prevLon = lon;
-  }
-
-  navigator.geolocation.watchPosition(pos => {
-    const lat = pos.coords.latitude;
-    const lon = pos.coords.longitude;
-    updatePosition(lat, lon);
-  }, console.error, {
-    enableHighAccuracy: true,
-    maximumAge: 1000,
-    timeout: 27000
+    if (cell.walls[0]) drawLine(x, y, x + cellSize, y);       // top
+    if (cell.walls[1]) drawLine(x + cellSize, y, x + cellSize, y + cellSize); // right
+    if (cell.walls[2]) drawLine(x + cellSize, y + cellSize, x, y + cellSize); // bottom
+    if (cell.walls[3]) drawLine(x, y + cellSize, x, y);       // left
   });
 
-  window.addEventListener('deviceorientation', (e) => {
-    if (e.absolute || e.alpha != null) {
-      player.angle = ((e.alpha ?? 0) * Math.PI / 180);
-    }
-  });
+  // salida
+  ctx.fillStyle = "lime";
+  ctx.beginPath();
+  ctx.arc(exit.x * cellSize + cellSize / 2, exit.y * cellSize + cellSize / 2, 5, 0, Math.PI * 2);
+  ctx.fill();
 
-  function loop() {
-    drawMaze();
-    requestAnimationFrame(loop);
+  // jugador
+  drawPlayer();
+
+  ctx.restore();
+}
+
+function drawLine(x1, y1, x2, y2) {
+  ctx.beginPath();
+  ctx.moveTo(x1, y1);
+  ctx.lineTo(x2, y2);
+  ctx.stroke();
+}
+
+function drawPlayer() {
+  const x = player.x * cellSize + cellSize / 2;
+  const y = player.y * cellSize + cellSize / 2;
+  const size = 10;
+
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  ctx.moveTo(x + Math.cos(player.dir) * size, y + Math.sin(player.dir) * size);
+  ctx.lineTo(x + Math.cos(player.dir + Math.PI * 2 / 3) * size, y + Math.sin(player.dir + Math.PI * 2 / 3) * size);
+  ctx.lineTo(x + Math.cos(player.dir - Math.PI * 2 / 3) * size, y + Math.sin(player.dir - Math.PI * 2 / 3) * size);
+  ctx.closePath();
+  ctx.fill();
+}
+
+// Movimiento GPS
+function distance(lat1, lon1, lat2, lon2) {
+  const R = 6371000; // m
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const a = Math.sin(dLat / 2) ** 2 + Math.cos(lat1 * Math.PI / 180) * Math.cos(lat2 * Math.PI / 180) * Math.sin(dLon / 2) ** 2;
+  return R * 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1 - a));
+}
+
+function moveForward() {
+  const dirX = Math.round(Math.cos(player.dir));
+  const dirY = Math.round(Math.sin(player.dir));
+  const newX = player.x + dirX;
+  const newY = player.y + dirY;
+
+  const cell = maze[index(player.x, player.y)];
+  const canMove =
+    (dirX === 1 && !cell.walls[1]) ||
+    (dirX === -1 && !cell.walls[3]) ||
+    (dirY === 1 && !cell.walls[2]) ||
+    (dirY === -1 && !cell.walls[0]);
+
+  if (
+    newX >= 0 && newX < cols &&
+    newY >= 0 && newY < rows &&
+    canMove
+  ) {
+    player.x = newX;
+    player.y = newY;
+    player.steps++;
+  }
+}
+
+navigator.geolocation.watchPosition(pos => {
+  const lat = pos.coords.latitude;
+  const lon = pos.coords.longitude;
+
+  if (lastLat !== null && lastLon !== null) {
+    const dist = distance(lat, lon, lastLat, lastLon);
+    const heading = Math.atan2(lat - lastLat, lon - lastLon);
+
+    if (dist >= 0.25) {
+      const angleDiff = Math.abs(player.dir - heading);
+      if (angleDiff < Math.PI / 4) {
+        moveForward();
+      }
+    }
   }
 
-  generateMaze();
-  loop();
+  lastLat = lat;
+  lastLon = lon;
+}, console.error, { enableHighAccuracy: true });
+
+window.addEventListener("deviceorientation", e => {
+  const angle = e.alpha;
+  if (angle !== null) {
+    player.dir = (angle * Math.PI / 180);
+  }
+});
+
+function animate() {
+  drawMaze(player.x, player.y);
+  requestAnimationFrame(animate);
+}
+animate();
 </script>
 </body>
 </html>
