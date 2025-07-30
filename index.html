@@ -2,218 +2,256 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8" />
-  <meta name="viewport" content="width=device-width, initial-scale=1.0"/>
-  <title>Laberinto dinámico</title>
+  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no" />
+  <title>Laberinto Dinámico</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
+      height: 100%;
       background: black;
     }
+
     canvas {
       display: block;
+    }
+
+    #countdown {
+      position: absolute;
+      top: 10px;
+      right: 15px;
+      color: #00ff00;
+      font-size: 24px;
+      font-family: monospace;
+      background: rgba(0, 0, 0, 0.7);
+      padding: 6px 10px;
+      border-radius: 8px;
     }
   </style>
 </head>
 <body>
   <canvas id="mazeCanvas"></canvas>
+  <div id="countdown">60</div>
+
   <script>
     const canvas = document.getElementById("mazeCanvas");
     const ctx = canvas.getContext("2d");
-
-    let cols = 25;
-    let rows = 25;
+    let width, height;
+    let cols = 21, rows = 21;
     let cellSize;
-    let maze = [];
-    let visited = [];
+    let grid = [];
     let stack = [];
+    let player = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
+    let viewOffset = { x: 0, y: 0 };
     let transitionFrames = 48;
-    let transitionCount = 0;
-    let transitioning = false;
-    let oldMaze = [];
-    let steps = 0;
-    let stepLimit = 15;
-
-    // Jugador empieza en el centro
-    let player = {
-      x: Math.floor(cols / 2),
-      y: Math.floor(rows / 2)
-    };
-
-    // Cámara centrada en jugador
-    let camera = {
-      x: 0,
-      y: 0
-    };
-
-    let exitCell = {
-      x: cols - 1,
-      y: rows - 1
-    };
+    let isTransitioning = false;
+    let prevGrid = null;
+    let frame = 0;
+    let exitCell = { x: cols - 1, y: rows - 1 };
 
     function resizeCanvas() {
-      canvas.width = window.innerWidth;
-      canvas.height = window.innerHeight;
-      cellSize = Math.floor(canvas.height / 15);
-      updateCamera(); // Centrar cámara en jugador
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      cellSize = Math.min(width / 10, height / 10);
     }
 
     window.addEventListener("resize", resizeCanvas);
     resizeCanvas();
 
+    class Cell {
+      constructor(x, y) {
+        this.x = x;
+        this.y = y;
+        this.walls = [true, true, true, true]; // top, right, bottom, left
+        this.visited = false;
+      }
+
+      draw(offsetX, offsetY, styleGrid = grid, alpha = 1) {
+        const x = this.x * cellSize - offsetX;
+        const y = this.y * cellSize - offsetY;
+        ctx.strokeStyle = `rgba(255,255,255,${alpha})`;
+        ctx.lineWidth = 1;
+
+        if (this.walls[0]) drawLine(x, y, x + cellSize, y);             // top
+        if (this.walls[1]) drawLine(x + cellSize, y, x + cellSize, y + cellSize); // right
+        if (this.walls[2]) drawLine(x + cellSize, y + cellSize, x, y + cellSize); // bottom
+        if (this.walls[3]) drawLine(x, y + cellSize, x, y);             // left
+      }
+    }
+
+    function drawLine(x1, y1, x2, y2) {
+      ctx.beginPath();
+      ctx.moveTo(x1, y1);
+      ctx.lineTo(x2, y2);
+      ctx.stroke();
+    }
+
+    function index(x, y) {
+      if (x < 0 || y < 0 || x >= cols || y >= rows) return null;
+      return x + y * cols;
+    }
+
     function createGrid() {
-      maze = [];
-      visited = [];
+      grid = [];
       for (let y = 0; y < rows; y++) {
-        maze[y] = [];
-        visited[y] = [];
         for (let x = 0; x < cols; x++) {
-          maze[y][x] = [true, true, true, true]; // top, right, bottom, left
-          visited[y][x] = false;
+          grid.push(new Cell(x, y));
         }
       }
+    }
+
+    function getNeighbors(cell) {
+      const neighbors = [];
+
+      const directions = [
+        { dx: 0, dy: -1, wall: 0, opposite: 2 }, // top
+        { dx: 1, dy: 0, wall: 1, opposite: 3 },  // right
+        { dx: 0, dy: 1, wall: 2, opposite: 0 },  // bottom
+        { dx: -1, dy: 0, wall: 3, opposite: 1 }, // left
+      ];
+
+      for (const dir of directions.sort(() => Math.random() - 0.5)) {
+        const nx = cell.x + dir.dx;
+        const ny = cell.y + dir.dy;
+        const neighbor = grid[index(nx, ny)];
+        if (neighbor && !neighbor.visited) {
+          neighbors.push({ cell: neighbor, wall: dir.wall, opposite: dir.opposite });
+        }
+      }
+
+      return neighbors;
     }
 
     function generateMaze(cx, cy) {
-      visited[cy][cx] = true;
-      const directions = [
-        [0, -1, 0], // top
-        [1, 0, 1],  // right
-        [0, 1, 2],  // bottom
-        [-1, 0, 3]  // left
-      ].sort(() => Math.random() - 0.5);
+      for (const cell of grid) {
+        cell.visited = false;
+        cell.walls = [true, true, true, true];
+      }
 
-      for (const [dx, dy, dir] of directions) {
-        const nx = cx + dx;
-        const ny = cy + dy;
-        if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && !visited[ny][nx]) {
-          maze[cy][cx][dir] = false;
-          maze[ny][nx][(dir + 2) % 4] = false;
-          generateMaze(nx, ny);
+      const start = grid[index(cx, cy)];
+      stack = [start];
+      start.visited = true;
+
+      while (stack.length > 0) {
+        const current = stack.pop();
+        const neighbors = getNeighbors(current);
+
+        if (neighbors.length > 0) {
+          stack.push(current);
+
+          const { cell: next, wall, opposite } = neighbors[0];
+          current.walls[wall] = false;
+          next.walls[opposite] = false;
+          next.visited = true;
+          stack.push(next);
         }
       }
+
+      // Mantén una salida en una esquina
+      exitCell = { x: cols - 1, y: rows - 1 };
+      grid[index(exitCell.x, exitCell.y)].walls[1] = false; // abrir lado derecho
     }
 
-    function drawMaze(interpolate = 1) {
-      ctx.clearRect(0, 0, canvas.width, canvas.height);
-      ctx.strokeStyle = "#FFFFFF";
-      ctx.lineWidth = 1;
+    function drawMaze(alpha = 1, useGrid = grid) {
+      ctx.clearRect(0, 0, width, height);
+      let offsetX = player.x * cellSize - width / 2 + cellSize / 2;
+      let offsetY = player.y * cellSize - height / 2 + cellSize / 2;
+      viewOffset = { x: offsetX, y: offsetY };
 
-      ctx.save();
-      ctx.translate(-camera.x, -camera.y);
-
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          const cx = x * cellSize;
-          const cy = y * cellSize;
-
-          const current = transitioning ? interpolateMazeCell(x, y, interpolate) : maze[y][x];
-
-          ctx.beginPath();
-          if (current[0]) ctx.moveTo(cx, cy), ctx.lineTo(cx + cellSize, cy); // top
-          if (current[1]) ctx.moveTo(cx + cellSize, cy), ctx.lineTo(cx + cellSize, cy + cellSize); // right
-          if (current[2]) ctx.moveTo(cx + cellSize, cy + cellSize), ctx.lineTo(cx, cy + cellSize); // bottom
-          if (current[3]) ctx.moveTo(cx, cy + cellSize), ctx.lineTo(cx, cy); // left
-          ctx.stroke();
-        }
+      for (const cell of useGrid) {
+        cell.draw(offsetX, offsetY, useGrid, alpha);
       }
 
-      // Dibujar jugador
-      ctx.fillStyle = "#00FFFF";
-      ctx.beginPath();
-      ctx.arc(
-        player.x * cellSize + cellSize / 2,
-        player.y * cellSize + cellSize / 2,
-        cellSize / 4,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
-
-      // Dibujar salida
+      // dibujar jugador
+      const px = player.x * cellSize - viewOffset.x + cellSize / 4;
+      const py = player.y * cellSize - viewOffset.y + cellSize / 4;
       ctx.fillStyle = "lime";
-      ctx.beginPath();
-      ctx.arc(
-        exitCell.x * cellSize + cellSize / 2,
-        exitCell.y * cellSize + cellSize / 2,
-        cellSize / 5,
-        0,
-        Math.PI * 2
-      );
-      ctx.fill();
+      ctx.fillRect(px, py, cellSize / 2, cellSize / 2);
 
-      ctx.restore();
+      // marcar salida
+      if (!isTransitioning) {
+        const ex = exitCell.x * cellSize - viewOffset.x + cellSize / 2;
+        const ey = exitCell.y * cellSize - viewOffset.y + cellSize / 2;
+        ctx.beginPath();
+        ctx.arc(ex, ey, cellSize / 6, 0, 2 * Math.PI);
+        ctx.fillStyle = "lime";
+        ctx.fill();
+      }
     }
 
-    function interpolateMazeCell(x, y, t) {
-      const oldCell = oldMaze[y][x];
-      const newCell = maze[y][x];
-      return newCell.map((wall, i) => (t < 0.5 ? oldCell[i] : wall));
-    }
-
-    function updateCamera() {
-      camera.x += ((player.x * cellSize + cellSize / 2) - canvas.width / 2 - camera.x) * 0.1;
-      camera.y += ((player.y * cellSize + cellSize / 2) - canvas.height / 2 - camera.y) * 0.1;
-    }
-
-    function handleInput(event) {
-      if (transitioning) return;
-      const key = event.key;
-      let dx = 0, dy = 0;
-      if (key === "ArrowUp") dy = -1;
-      if (key === "ArrowDown") dy = 1;
-      if (key === "ArrowLeft") dx = -1;
-      if (key === "ArrowRight") dx = 1;
-
-      const nx = player.x + dx;
-      const ny = player.y + dy;
-
-      if (nx >= 0 && ny >= 0 && nx < cols && ny < rows) {
-        const dir = dx === 1 ? 1 : dx === -1 ? 3 : dy === 1 ? 2 : 0;
-        if (!maze[player.y][player.x][dir]) {
-          player.x = nx;
-          player.y = ny;
-          steps++;
-          if (steps >= stepLimit) {
-            steps = 0;
-            startMazeTransition();
-          }
-        }
+    function animate() {
+      if (isTransitioning && frame < transitionFrames) {
+        const alpha = frame / transitionFrames;
+        drawMaze(1 - alpha, prevGrid);
+        drawMaze(alpha, grid);
+        frame++;
+        requestAnimationFrame(animate);
+      } else {
+        isTransitioning = false;
+        drawMaze();
+        requestAnimationFrame(animate);
       }
     }
 
     function startMazeTransition() {
-      transitioning = true;
-      transitionCount = 0;
-      oldMaze = maze.map(row => row.map(cell => [...cell]));
+      prevGrid = grid.map(cell => Object.assign(new Cell(cell.x, cell.y), {
+        walls: [...cell.walls]
+      }));
       createGrid();
       generateMaze(Math.floor(cols / 2), Math.floor(rows / 2));
+      isTransitioning = true;
+      frame = 0;
     }
 
-    function animate() {
-      requestAnimationFrame(animate);
+    document.addEventListener("keydown", (e) => {
+      if (isTransitioning) return;
 
-      if (transitioning) {
-        transitionCount++;
-        const t = transitionCount / transitionFrames;
-        drawMaze(t);
-        if (transitionCount >= transitionFrames) {
-          transitioning = false;
-        }
-      } else {
-        drawMaze();
+      const dir = {
+        ArrowUp: [0, -1, 0],
+        ArrowRight: [1, 0, 1],
+        ArrowDown: [0, 1, 2],
+        ArrowLeft: [-1, 0, 3],
+      }[e.key];
+
+      if (!dir) return;
+
+      const [dx, dy, wall] = dir;
+      const nx = player.x + dx;
+      const ny = player.y + dy;
+      const current = grid[index(player.x, player.y)];
+      const next = grid[index(nx, ny)];
+
+      if (!current || !next || current.walls[wall]) return;
+      player.x = nx;
+      player.y = ny;
+    });
+
+    // TIMER + TRANSITION + COUNTDOWN
+    let countdownValue = 60;
+    function updateCountdown() {
+      document.getElementById("countdown").textContent = countdownValue;
+      countdownValue--;
+      if (countdownValue < 0) {
+        countdownValue = 60;
       }
-
-      updateCamera();
     }
 
-    document.addEventListener("keydown", handleInput);
+    function scheduleMazeTransition() {
+      setTimeout(() => {
+        startMazeTransition();
+        scheduleMazeTransition();
+      }, 60000);
+    }
 
-    // Iniciar
+    // Start everything
     createGrid();
     generateMaze(Math.floor(cols / 2), Math.floor(rows / 2));
     animate();
+    scheduleMazeTransition();
+    setInterval(updateCountdown, 1000);
   </script>
 </body>
 </html>
