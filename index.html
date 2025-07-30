@@ -165,19 +165,17 @@
         `Pasos: ${player.steps}`;
     }
 
-    function haversine(lat1, lon1, lat2, lon2) {
-      const R = 6371e3;
-      const φ1 = lat1 * Math.PI / 180;
-      const φ2 = lat2 * Math.PI / 180;
-      const Δφ = (lat2 - lat1) * Math.PI / 180;
-      const Δλ = (lon2 - lon1) * Math.PI / 180;
+    function distanceInMeters(lat1, lon1, lat2, lon2) {
+  const earthRadius = 6371000; // metros
+  const dLat = (lat2 - lat1) * Math.PI / 180;
+  const dLon = (lon2 - lon1) * Math.PI / 180;
+  const meanLat = (lat1 + lat2) / 2 * Math.PI / 180;
 
-      const a = Math.sin(Δφ/2) ** 2 +
-                Math.cos(φ1) * Math.cos(φ2) *
-                Math.sin(Δλ/2) ** 2;
-      const c = 2 * Math.atan2(Math.sqrt(a), Math.sqrt(1-a));
-      return R * c;
-    }
+  const x = dLon * Math.cos(meanLat);
+  const distance = Math.sqrt(x * x + dLat * dLat) * earthRadius;
+  return distance;
+}
+
 
     function angleBetween(lat1, lon1, lat2, lon2) {
       const y = Math.sin(lon2 - lon1) * Math.cos(lat2);
@@ -220,7 +218,7 @@
         return;
       }
 
-      const dist = haversine(lastLat, lastLon, latitude, longitude);
+      const dist = distanceInMeters(lastLat, lastLon, latitude, longitude);
       const angle = angleBetween(lastLat, lastLon, latitude, longitude);
       const diff = Math.abs(((angle - player.angle + Math.PI * 3) % (Math.PI * 2)) - Math.PI);
 
