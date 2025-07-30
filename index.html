@@ -34,69 +34,56 @@
 
 
   <script>
-  
-   const canvas = document.getElementById('canvas');
+    const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 const info = document.getElementById('info');
-let width, height;
+let width = window.innerWidth;
+let height = window.innerHeight;
+canvas.width = width;
+canvas.height = height;
 
+const cellSize = 40;
 const cols = 21;
 const rows = 21;
-const maze = []; // to be filled with real maze
-const cellSize = 40;
+let maze = [];
+
 const player = {
   x: Math.floor(cols / 2),
   y: Math.floor(rows / 2),
-  dir: 0,
   lat: null,
   lon: null,
-  steps: 0
+  steps: 0,
+  dir: 0
 };
-
-function resize() {
-  width = window.innerWidth;
-  height = window.innerHeight;
-  canvas.width = width;
-  canvas.height = height;
-}
-resize();
-window.addEventListener('resize', resize);
 
 function generateMaze() {
   const grid = Array(rows).fill().map(() => Array(cols).fill().map(() => ({
-    top: true,
-    right: true,
-    bottom: true,
-    left: true,
-    visited: false
+    top: true, right: true, bottom: true, left: true, visited: false
   })));
 
-  const stack = [];
-  let cx = 0, cy = 0;
-  grid[cy][cx].visited = true;
-  stack.push([cx, cy]);
-
-  const dirs = [
-    [0, -1, 'top', 'bottom'],
-    [1, 0, 'right', 'left'],
-    [0, 1, 'bottom', 'top'],
-    [-1, 0, 'left', 'right']
-  ];
+  const stack = [[0, 0]];
+  grid[0][0].visited = true;
 
   while (stack.length) {
     const [x, y] = stack[stack.length - 1];
-    const neighbors = [];
+    const dirs = [
+      [0, -1, 'top', 'bottom'],
+      [1, 0, 'right', 'left'],
+      [0, 1, 'bottom', 'top'],
+      [-1, 0, 'left', 'right']
+    ];
 
-    for (const [dx, dy, wall, opposite] of dirs) {
-      const nx = x + dx;
-      const ny = y + dy;
-      if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && !grid[ny][nx].visited) {
-        neighbors.push([nx, ny, wall, opposite]);
-      }
-    }
+    const neighbors = dirs
+      .map(([dx, dy, wall, opposite]) => {
+        const nx = x + dx, ny = y + dy;
+        if (nx >= 0 && ny >= 0 && nx < cols && ny < rows && !grid[ny][nx].visited) {
+          return { nx, ny, wall, opposite };
+        }
+      })
+      .filter(Boolean);
 
     if (neighbors.length) {
-      const [nx, ny, wall, opposite] = neighbors[Math.floor(Math.random() * neighbors.length)];
+      const { nx, ny, wall, opposite } = neighbors[Math.floor(Math.random() * neighbors.length)];
       grid[y][x][wall] = false;
       grid[ny][nx][opposite] = false;
       grid[ny][nx].visited = true;
@@ -110,11 +97,8 @@ function generateMaze() {
 }
 
 function drawMaze() {
-  const halfW = width / 2;
-  const halfH = height / 2;
-
-  const offsetX = halfW - (player.x + 0.5) * cellSize;
-  const offsetY = halfH - (player.y + 0.5) * cellSize;
+  const offsetX = width / 2 - (player.x + 0.5) * cellSize;
+  const offsetY = height / 2 - (player.y + 0.5) * cellSize;
 
   ctx.clearRect(0, 0, width, height);
   ctx.save();
@@ -122,55 +106,43 @@ function drawMaze() {
 
   ctx.strokeStyle = '#888';
   ctx.lineWidth = 2;
+
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const cell = maze[y][x];
-      const px = x * cellSize;
-      const py = y * cellSize;
+      const px = x * cellSize, py = y * cellSize;
 
       if (cell.top) {
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(px + cellSize, py);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px, py); ctx.lineTo(px + cellSize, py); ctx.stroke();
       }
       if (cell.right) {
-        ctx.beginPath();
-        ctx.moveTo(px + cellSize, py);
-        ctx.lineTo(px + cellSize, py + cellSize);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + cellSize, py); ctx.lineTo(px + cellSize, py + cellSize); ctx.stroke();
       }
       if (cell.bottom) {
-        ctx.beginPath();
-        ctx.moveTo(px + cellSize, py + cellSize);
-        ctx.lineTo(px, py + cellSize);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px + cellSize, py + cellSize); ctx.lineTo(px, py + cellSize); ctx.stroke();
       }
       if (cell.left) {
-        ctx.beginPath();
-        ctx.moveTo(px, py + cellSize);
-        ctx.lineTo(px, py);
-        ctx.stroke();
+        ctx.beginPath(); ctx.moveTo(px, py + cellSize); ctx.lineTo(px, py); ctx.stroke();
       }
     }
   }
 
-  // salida
+  // Salida
   ctx.fillStyle = 'lime';
   ctx.fillRect((cols - 1) * cellSize + 10, (rows - 1) * cellSize + 10, 10, 10);
 
-  // personaje
+  // Jugador
   const px = (player.x + 0.5) * cellSize;
   const py = (player.y + 0.5) * cellSize;
 
   ctx.translate(px, py);
-  ctx.rotate(player.dir * Math.PI / 180);
+  ctx.rotate((player.dir ?? 0) * Math.PI / 180);
 
   ctx.fillStyle = 'cyan';
   ctx.beginPath();
   ctx.moveTo(0, -10);
-  ctx.lineTo(7, 7);
-  ctx.lineTo(-7, 7);
+  ctx.lineTo(6, 8);
+  ctx.lineTo(-6, 8);
   ctx.closePath();
   ctx.fill();
 
@@ -178,17 +150,16 @@ function drawMaze() {
 }
 
 function updateInfo() {
-  info.innerHTML = `Lat: ${player.lat?.toFixed(6) ?? "-"}<br>Lon: ${player.lon?.toFixed(6) ?? "-"}<br>Pasos: ${player.steps}`;
+  info.innerHTML = `Lat: ${player.lat?.toFixed(6) ?? '-'}<br>Lon: ${player.lon?.toFixed(6) ?? '-'}<br>Pasos: ${player.steps}`;
 }
 
-function getDirectionDelta(angle) {
+// Dirección cardinal en base a ángulo
+function getDirectionStep(angle) {
   const rad = angle * Math.PI / 180;
   const dx = Math.round(Math.sin(rad));
   const dy = -Math.round(Math.cos(rad));
   return [dx, dy];
 }
-
-let prevLat = null, prevLon = null;
 
 function latlonToMeters(lat1, lon1, lat2, lon2) {
   const dx = (lon2 - lon1) * 111320 * Math.cos((lat1 + lat2) / 2 * Math.PI / 180);
@@ -196,25 +167,23 @@ function latlonToMeters(lat1, lon1, lat2, lon2) {
   return [dx, dy];
 }
 
+let prevLat = null, prevLon = null;
+
 function tryMove(lat, lon) {
-  if (prevLat === null || prevLon === null) {
-    prevLat = lat;
-    prevLon = lon;
+  if (prevLat == null || prevLon == null) {
+    prevLat = lat; prevLon = lon;
     return;
   }
 
   const [dx, dy] = latlonToMeters(prevLat, prevLon, lat, lon);
   const dist = Math.sqrt(dx * dx + dy * dy);
-  const angle = player.dir;
-  const dirRad = angle * Math.PI / 180;
-
-  const forwardX = Math.cos(dirRad);
-  const forwardY = Math.sin(dirRad);
-
+  const angle = player.dir ?? 0;
+  const forwardX = Math.sin(angle * Math.PI / 180);
+  const forwardY = -Math.cos(angle * Math.PI / 180);
   const dot = (dx * forwardX + dy * forwardY) / dist;
 
   if (dist > 0.2 && dot > 0.5) {
-    const [stepX, stepY] = getDirectionDelta(angle);
+    const [stepX, stepY] = getDirectionStep(angle);
     const nx = player.x + stepX;
     const ny = player.y + stepY;
 
@@ -237,17 +206,24 @@ function tryMove(lat, lon) {
   }
 }
 
+// Geolocalización
 navigator.geolocation.watchPosition(pos => {
   player.lat = pos.coords.latitude;
   player.lon = pos.coords.longitude;
   tryMove(player.lat, player.lon);
-});
+}, console.error, { enableHighAccuracy: true, maximumAge: 0, timeout: 5000 });
 
-window.addEventListener("deviceorientation", e => {
-  if (e.absolute || e.webkitCompassHeading !== undefined) {
-    player.dir = e.webkitCompassHeading || 360 - e.alpha;
+// Orientación del móvil
+window.addEventListener("deviceorientationabsolute", handleOrientation, true);
+window.addEventListener("deviceorientation", handleOrientation, true);
+
+function handleOrientation(e) {
+  if (e.absolute && e.alpha != null) {
+    player.dir = e.alpha;
+  } else if (e.webkitCompassHeading != null) {
+    player.dir = e.webkitCompassHeading;
   }
-});
+}
 
 function loop() {
   updateInfo();
@@ -255,9 +231,9 @@ function loop() {
   requestAnimationFrame(loop);
 }
 
-maze.push(...generateMaze());
-loop();     
-      
+maze = generateMaze();
+loop();
+    
   </script>
 </body>
 </html>
