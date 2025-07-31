@@ -50,6 +50,10 @@ const corners = [
 ];
 const exit = corners[Math.floor(Math.random() * corners.length)];
 
+const visibleMap = Array.from({ length: rows }, () => Array(cols).fill(false));
+
+
+  
 // Generador básico de laberinto (DFS)
 function generateMaze() {
   for (let y = 0; y < rows; y++) {
@@ -97,38 +101,40 @@ function drawMaze(centerX, centerY) {
   ctx.save();
   ctx.translate(offsetX, offsetY);
   
-  for (let y = 0; y < rows; y++) {
-    for (let x = 0; x < cols; x++) {
-      const cell = map[y][x];
-      const px = x * cellSize;
-      const py = y * cellSize;
+ for (let y = 0; y < rows; y++) {
+  for (let x = 0; x < cols; x++) {
+    if (!visibleMap[y][x]) continue; // Ocultar celdas no vistas
 
-      if (cell.top) {
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(px + cellSize, py);
-        ctx.stroke();
-      }
-      if (cell.right) {
-        ctx.beginPath();
-        ctx.moveTo(px + cellSize, py);
-        ctx.lineTo(px + cellSize, py + cellSize);
-        ctx.stroke();
-      }
-      if (cell.bottom) {
-        ctx.beginPath();
-        ctx.moveTo(px, py + cellSize);
-        ctx.lineTo(px + cellSize, py + cellSize);
-        ctx.stroke();
-      }
-      if (cell.left) {
-        ctx.beginPath();
-        ctx.moveTo(px, py);
-        ctx.lineTo(px, py + cellSize);
-        ctx.stroke();
-      }
+    const cell = map[y][x];
+    const px = x * cellSize;
+    const py = y * cellSize;
+
+    if (cell.top) {
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px + cellSize, py);
+      ctx.stroke();
+    }
+    if (cell.right) {
+      ctx.beginPath();
+      ctx.moveTo(px + cellSize, py);
+      ctx.lineTo(px + cellSize, py + cellSize);
+      ctx.stroke();
+    }
+    if (cell.bottom) {
+      ctx.beginPath();
+      ctx.moveTo(px, py + cellSize);
+      ctx.lineTo(px + cellSize, py + cellSize);
+      ctx.stroke();
+    }
+    if (cell.left) {
+      ctx.beginPath();
+      ctx.moveTo(px, py);
+      ctx.lineTo(px, py + cellSize);
+      ctx.stroke();
     }
   }
+}
 
   // Dibujar salida
   ctx.fillStyle = 'red';
@@ -144,6 +150,29 @@ function drawMaze(centerX, centerY) {
   ctx.lineTo(player.x * cellSize + cellSize * 3 / 4, player.y * cellSize + cellSize * 3 / 4);
   ctx.closePath();
   ctx.fill();
+
+    // NIEBLA DE GUERRA (gradiente circular alrededor del jugador)
+  const fogRadius = cellSize * 4;
+  const px = width / 2;
+  const py = height / 2;
+
+  // Capa negra encima
+  ctx.globalCompositeOperation = 'destination-over';
+  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
+  ctx.fillRect(-offsetX, -offsetY, canvas.width, canvas.height);
+
+  // Agujero radial en el centro (jugador)
+  const gradient = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
+
+  ctx.globalCompositeOperation = 'destination-out';
+  ctx.fillStyle = gradient;
+  ctx.beginPath();
+  ctx.arc(px, py, fogRadius, 0, Math.PI * 2);
+  ctx.fill();
+  ctx.globalCompositeOperation = 'source-over';
+
 
   ctx.restore();
 }
@@ -177,6 +206,9 @@ function movePlayer(dx, dy) {
     player.x = nextX;
     player.y = nextY;
 
+    visibleMap[player.y][player.x] = true;
+
+    
     if (exits > 2 || (dx !== 0 && (!nextCell.left || !nextCell.right)) || (dy !== 0 && (!nextCell.top || !nextCell.bottom))) break;
   }
  
@@ -239,12 +271,20 @@ setInterval(() => {
     // Regenerar el laberinto
     generateMaze();
 
+   
+
+
     // Restaurar posiciones
     player.x = oldPlayer.x;
     player.y = oldPlayer.y;
     exit.x = oldExit.x;
     exit.y = oldExit.y;
-
+ for (let y = 0; y < rows; y++) {
+  for (let x = 0; x < cols; x++) {
+    visibleMap[y][x] = false;
+  }
+}
+visibleMap[player.y][player.x] = true;
     drawMaze(player.x, player.y);
 
     // Fade out (volver a ver)
@@ -261,6 +301,10 @@ function animate() {
   cameraY += (player.y - cameraY) * speed;
 
   drawMaze(player.x, player.y);
+
+  
+
+  
   if (showHint) {
   const dx = exit.x - player.x;
   const dy = exit.y - player.y;
