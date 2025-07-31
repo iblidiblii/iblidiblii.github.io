@@ -137,7 +137,7 @@ function drawMaze(centerX, centerY) {
   ctx.fill();
 
   // Dibujar jugador
-  ctx.fillStyle = 'red';
+  ctx.fillStyle = 'blue';
   ctx.beginPath();
   ctx.moveTo(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 4);
   ctx.lineTo(player.x * cellSize + cellSize / 4, player.y * cellSize + cellSize * 3 / 4);
@@ -192,34 +192,49 @@ canvas.addEventListener('touchstart', e => {
   else if (x > width * 0.75) movePlayer(1, 0);
 });
 
-// Mostrar pista visual en la esquina hacia donde está la salida
+// Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
 setInterval(() => {
-  drawMaze(player.x, player.y); // Limpia el canvas
+  drawMaze(player.x, player.y); // Limpia primero
 
   const dx = exit.x - player.x;
   const dy = exit.y - player.y;
+  const angle = Math.atan2(dy, dx); // Ángulo hacia la salida
 
-  // Determinar la esquina (cuadrantes)
-  let cornerX = 0;
-  let cornerY = 0;
+  ctx.save();
 
-  if (dy > 0) cornerY = height; // Inferior
-  if (dx > 0) cornerX = width;  // Derecha
+  // Coordenadas del jugador en pantalla
+  const playerScreenX = width / 2;
+  const playerScreenY = height / 2;
 
-  // Crear gradiente radial en la esquina correspondiente
-  const gradientRadius = Math.max(width, height) / 3;
-  const grad = ctx.createRadialGradient(cornerX, cornerY, 0, cornerX, cornerY, gradientRadius);
-  grad.addColorStop(0, 'rgba(0,255,0,0.3)');
+  ctx.translate(playerScreenX, playerScreenY);
+  ctx.rotate(angle);
+
+  // Crear gradiente lineal hacia la derecha (hacia la salida)
+  const grad = ctx.createLinearGradient(0, 0, cellSize * 6, 0);
+  grad.addColorStop(0, 'rgba(0,255,0,0.4)');
   grad.addColorStop(1, 'rgba(0,255,0,0)');
 
   ctx.fillStyle = grad;
-  ctx.fillRect(0, 0, width, height);
 
-  // Limpiar gradiente después de un rato
+  // Dibuja un haz tipo "cono" o flecha difusa
+  const widthCone = cellSize * 2;
+  const lengthCone = cellSize * 6;
+  ctx.beginPath();
+  ctx.moveTo(0, -widthCone / 2);
+  ctx.lineTo(lengthCone, -widthCone / 4);
+  ctx.lineTo(lengthCone, widthCone / 4);
+  ctx.lineTo(0, widthCone / 2);
+  ctx.closePath();
+  ctx.fill();
+
+  ctx.restore();
+
+  // Limpiar pista después de 1.5 segundos
   setTimeout(() => {
     drawMaze(player.x, player.y);
   }, 1500);
-}, 5000);
+}, 30000);
+
 
   // Overlay para fade
 const fadeOverlay = document.createElement('div');
