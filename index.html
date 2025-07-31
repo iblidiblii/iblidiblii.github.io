@@ -1,202 +1,182 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <title>Laberinto</title>
-  <meta name="viewport" content="width=device-width, initial-scale=1.0, user-scalable=no">
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laberinto Auto-Movimiento</title>
   <style>
     html, body {
       margin: 0;
       padding: 0;
       overflow: hidden;
-      background: black;
+      background: white;
     }
     canvas {
       display: block;
-      background: white;
-    }
-    #fade {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      background: black;
-      pointer-events: none;
-      opacity: 0;
-      transition: opacity 3s;
-      z-index: 10;
-    }
-    #hint {
-      position: fixed;
-      top: 0; left: 0;
-      width: 100vw; height: 100vh;
-      pointer-events: none;
-      background: radial-gradient(ellipse at center, rgba(255,255,0,0.2) 0%, rgba(255,255,0,0) 70%);
-      opacity: 0;
-      transition: opacity 1s;
-      z-index: 5;
     }
   </style>
 </head>
 <body>
-  <canvas id="canvas"></canvas>
-  <div id="fade"></div>
-  <div id="hint"></div>
-  <script>
-    const canvas = document.getElementById("canvas");
-    const ctx = canvas.getContext("2d");
-    let width, height;
-    function resize() {
-      width = window.innerWidth;
-      height = window.innerHeight;
-      canvas.width = width;
-      canvas.height = height;
+<canvas id="game"></canvas>
+<script>
+const canvas = document.getElementById("game");
+const ctx = canvas.getContext("2d");
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+const CELL_SIZE = 20;
+const MAZE_COLS = 41; // impar
+const MAZE_ROWS = 41;
+let maze = [];
+let player = { x: 1, y: 1 };
+let goal = { x: MAZE_COLS - 2, y: MAZE_ROWS - 2 };
+let cameraZoom = 10;
+
+function initMaze() {
+  maze = Array.from({ length: MAZE_ROWS }, () =>
+    Array(MAZE_COLS).fill(1)
+  );
+  carve(1, 1);
+  player = { x: 1, y: 1 };
+  goal = getRandomCornerExit();
+}
+function getRandomCornerExit() {
+  const corners = [
+    { x: 1, y: 1 },
+    { x: 1, y: MAZE_ROWS - 2 },
+    { x: MAZE_COLS - 2, y: 1 },
+    { x: MAZE_COLS - 2, y: MAZE_ROWS - 2 }
+  ];
+  return corners[Math.floor(Math.random() * corners.length)];
+}
+
+function carve(x, y) {
+  const dirs = shuffle([
+    [0, -2],
+    [0, 2],
+    [-2, 0],
+    [2, 0]
+  ]);
+  maze[y][x] = 0;
+  for (const [dx, dy] of dirs) {
+    const nx = x + dx, ny = y + dy;
+    if (
+      nx > 0 &&
+      ny > 0 &&
+      nx < MAZE_COLS - 1 &&
+      ny < MAZE_ROWS - 1 &&
+      maze[ny][nx] === 1
+    ) {
+      maze[y + dy / 2][x + dx / 2] = 0;
+      carve(nx, ny);
     }
-    window.addEventListener("resize", resize);
-    resize();
+  }
+}
 
-    // Variables de configuración
-    const cellSize = 40;
-    const cols = 50;
-    const rows = 50;
-    let seed = Date.now();
-    let maze, player = { x: Math.floor(cols / 2), y: Math.floor(rows / 2) };
-    let exit = { x: 0, y: 0 };
-    let lastDir = null;
+function shuffle(array) {
+  for (let i = array.length - 1; i > 0; i--) {
+    const j = Math.floor(Math.random() * (i + 1));
+    [array[i], array[j]] = [array[j], array[i]];
+  }
+  return array;
+}
 
-    // Generador de laberinto con semilla
-    function random(seed) {
-      return function() {
-        seed = (seed * 9301 + 49297) % 233280;
-        return seed / 233280;
-      };
-    }
+function drawMaze() {
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
+  const viewSize = canvas.width / cameraZoom;
+  const offsetX = player.x * CELL_SIZE - viewSize / 2;
+  const offsetY = player.y * CELL_SIZE - viewSize / 2;
 
-    function generateMaze(seed) {
-      let rand = random(seed);
-      let maze = Array.from({ length: rows }, () => Array(cols).fill(0));
-      function carve(x, y) {
-        const dirs = [[0,-1],[1,0],[0,1],[-1,0]].sort(() => rand() - 0.5);
-        for (let [dx, dy] of dirs) {
-          const nx = x + dx * 2, ny = y + dy * 2;
-          if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && maze[ny][nx] === 0) {
-            maze[y + dy][x + dx] = 1;
-            maze[ny][nx] = 1;
-            carve(nx, ny);
-          }
-        }
+  ctx.lineWidth = 1;
+  ctx.strokeStyle = "#000";
+
+  for (let y = 0; y < MAZE_ROWS; y++) {
+    for (let x = 0; x < MAZE_COLS; x++) {
+      if (maze[y][x] === 1) {
+        const px = x * CELL_SIZE - offsetX;
+        const py = y * CELL_SIZE - offsetY;
+        ctx.beginPath();
+        ctx.rect(px, py, CELL_SIZE, CELL_SIZE);
+        ctx.stroke();
       }
-      let sx = Math.floor(rand() * cols/2) * 2 + 1;
-      let sy = Math.floor(rand() * rows/2) * 2 + 1;
-      maze[sy][sx] = 1;
-      carve(sx, sy);
-      return maze;
     }
+  }
 
-    function chooseExit(seed) {
-      let rand = random(seed);
-      const corners = [
-        { x: 1, y: 1 },
-        { x: cols - 2, y: 1 },
-        { x: 1, y: rows - 2 },
-        { x: cols - 2, y: rows - 2 },
+  // Dibujar salida
+  ctx.fillStyle = "green";
+  const gx = goal.x * CELL_SIZE - offsetX + CELL_SIZE / 4;
+  const gy = goal.y * CELL_SIZE - offsetY + CELL_SIZE / 4;
+  ctx.beginPath();
+  ctx.arc(gx, gy, CELL_SIZE / 4, 0, 2 * Math.PI);
+  ctx.fill();
+
+  // Dibujar jugador
+  ctx.fillStyle = "red";
+  const px = player.x * CELL_SIZE - offsetX;
+  const py = player.y * CELL_SIZE - offsetY;
+  ctx.beginPath();
+  ctx.arc(px + CELL_SIZE / 2, py + CELL_SIZE / 2, CELL_SIZE / 3, 0, 2 * Math.PI);
+  ctx.fill();
+}
+
+function moveUntilBlocked(dirX, dirY) {
+  let moved = false;
+  while (true) {
+    const nx = player.x + dirX;
+    const ny = player.y + dirY;
+    if (
+      nx >= 0 && ny >= 0 &&
+      nx < MAZE_COLS && ny < MAZE_ROWS &&
+      maze[ny][nx] === 0
+    ) {
+      // Chequear si hay bifurcación adelante
+      const options = [
+        [0, -1],
+        [0, 1],
+        [-1, 0],
+        [1, 0]
       ];
-      return corners[Math.floor(rand() * 4)];
-    }
-
-    function drawMaze() {
-      const camX = player.x * cellSize - width / 2 + cellSize / 2;
-      const camY = player.y * cellSize - height / 2 + cellSize / 2;
-      ctx.clearRect(0, 0, width, height);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "black";
-      ctx.fillStyle = "white";
-      ctx.fillRect(0, 0, width, height);
-
-      for (let y = 0; y < rows; y++) {
-        for (let x = 0; x < cols; x++) {
-          if (maze[y][x] === 0) {
-            ctx.strokeRect(x * cellSize - camX, y * cellSize - camY, cellSize, cellSize);
-          }
+      let paths = 0;
+      for (const [dx, dy] of options) {
+        const cx = nx + dx;
+        const cy = ny + dy;
+        if (
+          cx >= 0 && cy >= 0 &&
+          cx < MAZE_COLS && cy < MAZE_ROWS &&
+          maze[cy][cx] === 0 &&
+          !(dx === -dirX && dy === -dirY) // No contar el camino de vuelta
+        ) {
+          paths++;
         }
       }
-
-      // Dibujar salida
-      ctx.fillStyle = "green";
-      ctx.beginPath();
-      ctx.arc(exit.x * cellSize - camX + cellSize / 2, exit.y * cellSize - camY + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
-      ctx.fill();
-
-      // Dibujar jugador
-      ctx.fillStyle = "red";
-      ctx.beginPath();
-      const px = player.x * cellSize - camX + cellSize / 2;
-      const py = player.y * cellSize - camY + cellSize / 2;
-      ctx.moveTo(px, py - cellSize / 3);
-      ctx.lineTo(px - cellSize / 4, py + cellSize / 4);
-      ctx.lineTo(px + cellSize / 4, py + cellSize / 4);
-      ctx.closePath();
-      ctx.fill();
+      player.x = nx;
+      player.y = ny;
+      moved = true;
+      if (paths > 1) break;
+    } else {
+      break;
     }
+  }
+  if (moved) drawMaze();
+}
 
-    function canMove(x, y) {
-      return maze[y] && maze[y][x] === 1;
-    }
+canvas.addEventListener("click", (e) => {
+  const w = canvas.width;
+  const h = canvas.height;
+  const x = e.clientX;
+  const y = e.clientY;
 
-    function movePlayer(dx, dy) {
-      const nx = player.x + dx;
-      const ny = player.y + dy;
-      if (canMove(nx, ny)) {
-        player.x = nx;
-        player.y = ny;
-      }
-    }
+  const thirdW = w / 3;
+  const thirdH = h / 3;
 
-    canvas.addEventListener("click", e => {
-      const x = e.clientX, y = e.clientY;
-      if (y < height * 0.25) movePlayer(0, -1);
-      else if (y > height * 0.75) movePlayer(0, 1);
-      else if (x < width * 0.25) movePlayer(-1, 0);
-      else if (x > width * 0.75) movePlayer(1, 0);
-    });
+  if (y < thirdH) moveUntilBlocked(0, -1); // arriba
+  else if (y > 2 * thirdH) moveUntilBlocked(0, 1); // abajo
+  else if (x < thirdW) moveUntilBlocked(-1, 0); // izquierda
+  else if (x > 2 * thirdW) moveUntilBlocked(1, 0); // derecha
+});
 
-    function fadeTransition() {
-      const fade = document.getElementById("fade");
-      fade.style.opacity = 1;
-      setTimeout(() => {
-        seed = Date.now();
-        maze = generateMaze(seed);
-        exit = chooseExit(seed);
-        navigator.vibrate?.(3000);
-        fade.style.opacity = 0;
-      }, 3000);
-    }
-
-    function showHint() {
-      const hint = document.getElementById("hint");
-      const dx = exit.x - player.x;
-      const dy = exit.y - player.y;
-      const angle = Math.atan2(dy, dx) * 180 / Math.PI + 90;
-      hint.style.background = `linear-gradient(${angle}deg, rgba(255,255,0,0.2), rgba(255,255,0,0))`;
-      hint.style.opacity = 1;
-      navigator.vibrate?.([200, 100, 200]);
-      setTimeout(() => { hint.style.opacity = 0; }, 3000);
-    }
-
-    // Animación y lógica
-    function loop() {
-      drawMaze();
-      requestAnimationFrame(loop);
-    }
-
-    // Tiempo para mostrar pista cada cierto tiempo
-    const hintInterval = 30000; // ⏱️ Puedes modificar este valor en milisegundos
-
-    // Inicio
-    maze = generateMaze(seed);
-    exit = chooseExit(seed);
-    setInterval(fadeTransition, 60000); // Cambio de laberinto cada 60s
-    setInterval(showHint, hintInterval);
-    loop();
-  </script>
+initMaze();
+drawMaze();
+</script>
 </body>
 </html>
