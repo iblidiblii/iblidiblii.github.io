@@ -29,8 +29,7 @@ let height = window.innerHeight;
 canvas.width = width;
 canvas.height = height;
 
-let cameraX = player.x;
-let cameraY = player.y;
+
   
 // Tamaño del laberinto y celdas
 const cols = 21;
@@ -38,7 +37,9 @@ const rows = 21;
 const cellSize = Math.floor(height / 15);
 const map = [];
 let player = { x: Math.floor(cols/2), y: Math.floor(rows/2) };
-
+  
+let cameraX = player.x;
+let cameraY = player.y;
 // Salida en una esquina aleatoria
 const corners = [
   { x: 0, y: 0 },
