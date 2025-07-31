@@ -1,11 +1,11 @@
 <!DOCTYPE html>
 <html lang="es">
 <head>
-  <meta charset="UTF-8">
-  <meta name="viewport" content="width=device-width, initial-scale=1.0">
-  <title>Laberinto GPS</title>
+  <meta charset="UTF-8" />
+  <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+  <title>Laberinto GPS Juego</title>
   <style>
-    html, body {
+    body, html {
       margin: 0;
       padding: 0;
       overflow: hidden;
@@ -17,231 +17,245 @@
   </style>
 </head>
 <body>
-  <canvas id="gameCanvas"></canvas>
-  <script>
-    const canvas = document.getElementById("gameCanvas");
-    const ctx = canvas.getContext("2d");
-    let w, h;
-    function resize() {
-      w = canvas.width = window.innerWidth;
-      h = canvas.height = window.innerHeight;
+<canvas id="canvas"></canvas>
+<script>
+const canvas = document.getElementById("canvas");
+const ctx = canvas.getContext("2d");
+
+let size = 21;
+let cellSize = 30;
+let maze = [];
+let visited = [];
+let player = { x: Math.floor(size / 2), y: Math.floor(size / 2), dir: 'up' };
+let direction = null;
+let lastMazeSeed = Date.now();
+let lastHintTime = Date.now();
+let fadeOpacity = 0;
+let fading = false;
+let fadeIn = true;
+let hintActive = false;
+let cameraZoom = 1.8; // Distancia de la cámara (ajustable)
+let showPlayer = true;
+
+// Variable para ajustar el tiempo entre pistas (milisegundos)
+let hintInterval = 30000;
+
+let exit = { x: 0, y: 0 }; // Se mantiene siempre la misma
+let mazeSeed = Date.now();
+
+canvas.width = window.innerWidth;
+canvas.height = window.innerHeight;
+
+function generateMaze(seed) {
+  maze = Array(size).fill().map(() => Array(size).fill(1));
+  visited = Array(size).fill().map(() => Array(size).fill(false));
+
+  function shuffle(array) {
+    for (let i = array.length - 1; i > 0; i--) {
+      const j = Math.floor(xmur3(seed + i + '')() * (i + 1));
+      [array[i], array[j]] = [array[j], array[i]];
     }
-    window.addEventListener("resize", resize);
-    resize();
+    return array;
+  }
 
-    const cellSize = 20;
-    const mazeSize = 31;
-    let maze = [];
-    let player = { x: 0, y: 0, dir: "up", angle: 0 };
-    let exit = { x: 0, y: 0 };
-    let fadeOpacity = 0;
-    let fading = false;
-    let showingHint = false;
-    let lastMazeChange = Date.now();
-    let lastHintTime = Date.now();
-
-    const HINT_INTERVAL = 30000; // ⬅️ Tiempo entre pistas en milisegundos
-    const MAZE_CHANGE_INTERVAL = 60000;
-
-    function seededRandom(seed) {
-      let x = Math.sin(seed) * 10000;
-      return x - Math.floor(x);
-    }
-
-    function generateMaze(seed) {
-      maze = Array.from({ length: mazeSize }, () =>
-        Array(mazeSize).fill(0)
-      );
-      function carve(x, y) {
-        const dirs = ["up", "down", "left", "right"].sort(() => Math.random() - 0.5);
-        for (let dir of dirs) {
-          let nx = x, ny = y;
-          if (dir === "up") ny -= 2;
-          if (dir === "down") ny += 2;
-          if (dir === "left") nx -= 2;
-          if (dir === "right") nx += 2;
-          if (nx > 0 && ny > 0 && nx < mazeSize && ny < mazeSize && maze[ny][nx] === 0) {
-            maze[(y + ny) >> 1][(x + nx) >> 1] = 1;
-            maze[ny][nx] = 1;
-            carve(nx, ny);
-          }
-        }
-      }
-      maze[1][1] = 1;
-      carve(1,1);
-
-      player.x = 1;
-      player.y = 1;
-      exit = [
-        {x: 1, y: mazeSize-2},
-        {x: mazeSize-2, y: 1},
-        {x: mazeSize-2, y: mazeSize-2}
-      ][Math.floor(seededRandom(seed) * 3)];
-    }
-
-    function drawMaze() {
-      ctx.clearRect(0, 0, w, h);
-      const scale = 1.5;
-      const camX = player.x * cellSize;
-      const camY = player.y * cellSize;
-
-      ctx.save();
-      ctx.translate(w/2 - camX, h/2 - camY);
-      ctx.lineWidth = 1;
-      ctx.strokeStyle = "black";
-
-      for (let y = 0; y < mazeSize; y++) {
-        for (let x = 0; x < mazeSize; x++) {
-          if (maze[y][x] === 0) {
-            ctx.beginPath();
-            ctx.rect(x * cellSize, y * cellSize, cellSize, cellSize);
-            ctx.stroke();
-          }
-        }
-      }
-
-      // Salida
-      ctx.fillStyle = "green";
-      ctx.beginPath();
-      ctx.arc(exit.x * cellSize + cellSize / 2, exit.y * cellSize + cellSize / 2, 5, 0, 2 * Math.PI);
-      ctx.fill();
-
-      // Jugador
-      ctx.translate(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 2);
-      ctx.rotate(player.angle);
-      ctx.fillStyle = "blue";
-      ctx.beginPath();
-      ctx.moveTo(0, -7);
-      ctx.lineTo(5, 7);
-      ctx.lineTo(-5, 7);
-      ctx.closePath();
-      ctx.fill();
-
-      ctx.restore();
-
-      if (showingHint) drawHint();
-      if (fading) {
-        ctx.fillStyle = `rgba(0,0,0,${fadeOpacity})`;
-        ctx.fillRect(0, 0, w, h);
+  function carve(x, y) {
+    visited[y][x] = true;
+    maze[y][x] = 0;
+    for (const [dx, dy] of shuffle([[0, -2], [2, 0], [0, 2], [-2, 0]])) {
+      const nx = x + dx, ny = y + dy;
+      if (ny >= 0 && ny < size && nx >= 0 && nx < size && !visited[ny][nx]) {
+        maze[y + dy / 2][x + dx / 2] = 0;
+        carve(nx, ny);
       }
     }
+  }
 
-    function drawHint() {
-      const dx = exit.x - player.x;
-      const dy = exit.y - player.y;
-      const angle = Math.atan2(dy, dx);
+  carve(Math.floor(size / 2), Math.floor(size / 2));
+}
 
-      const gradient = ctx.createRadialGradient(w/2, h/2, 0, w/2, h/2, w/1.5);
-      gradient.addColorStop(0, "rgba(0,255,0,0.2)");
-      gradient.addColorStop(1, "rgba(0,0,0,0)");
+function xmur3(str) {
+  for (var i = 0, h = 1779033703 ^ str.length; i < str.length; i++)
+    h = Math.imul(h ^ str.charCodeAt(i), 3432918353);
+  return function () {
+    h = Math.imul(h ^ (h >>> 13), 2246822507);
+    h = Math.imul(h ^ (h >>> 15), 3266489909);
+    return (h >>> 0) / 4294967296;
+  };
+}
 
-      ctx.save();
-      ctx.translate(w/2, h/2);
-      ctx.rotate(angle);
-      ctx.fillStyle = gradient;
-      ctx.fillRect(-w, -h, w*2, h*2);
-      ctx.restore();
-    }
-
-    function fadeTransition(callback) {
-      fading = true;
-      fadeOpacity = 0;
-      const duration = 3000;
-      const start = Date.now();
-
-      function animate() {
-        let now = Date.now();
-        let t = (now - start) / duration;
-        fadeOpacity = Math.min(t, 1);
-        if (t < 1) {
-          requestAnimationFrame(animate);
-        } else {
-          callback();
-          setTimeout(() => {
-            let reverseStart = Date.now();
-            function reverseFade() {
-              let now = Date.now();
-              let t = 1 - (now - reverseStart) / duration;
-              fadeOpacity = Math.max(t, 0);
-              if (t > 0) {
-                requestAnimationFrame(reverseFade);
-              } else {
-                fading = false;
-              }
-            }
-            reverseFade();
-          }, 100);
-        }
-      }
-      animate();
-      if (navigator.vibrate) navigator.vibrate(3000);
-    }
-
-    function showHint() {
-      showingHint = true;
-      if (navigator.vibrate) navigator.vibrate([200, 100, 200, 100, 200]);
-      setTimeout(() => showingHint = false, 3000);
-    }
-
-    function update() {
-      drawMaze();
-
-      const now = Date.now();
-      if (now - lastMazeChange >= MAZE_CHANGE_INTERVAL) {
-        lastMazeChange = now;
-        fadeTransition(() => generateMaze(initialSeed));
-      }
-      if (now - lastHintTime >= HINT_INTERVAL) {
-        lastHintTime = now;
-        showHint();
-      }
-      requestAnimationFrame(update);
-    }
-
-    function canMove(x, y) {
-      return x >= 0 && y >= 0 && x < mazeSize && y < mazeSize && maze[y][x] === 1;
-    }
-
-    function tryMove(dir) {
-      let dx = 0, dy = 0;
-      if (dir === "up") dy = -1;
-      if (dir === "down") dy = 1;
-      if (dir === "left") dx = -1;
-      if (dir === "right") dx = 1;
-      player.dir = dir;
-      const angles = { up: 0, right: Math.PI/2, down: Math.PI, left: -Math.PI/2 };
-      player.angle = angles[dir];
-
-      let nx = player.x + dx, ny = player.y + dy;
-      while (canMove(nx, ny)) {
-        const options = [];
-        if (canMove(nx+1, ny)) options.push("right");
-        if (canMove(nx-1, ny)) options.push("left");
-        if (canMove(nx, ny+1)) options.push("down");
-        if (canMove(nx, ny-1)) options.push("up");
-
-        const goingBack = options.length === 2 && options.includes(dir);
-        if (options.length > 2 || !goingBack) break;
-
-        player.x = nx;
-        player.y = ny;
-        nx += dx;
-        ny += dy;
+function drawMaze() {
+  ctx.strokeStyle = "black";
+  ctx.lineWidth = 1;
+  for (let y = 0; y < size; y++) {
+    for (let x = 0; x < size; x++) {
+      if (maze[y][x] === 1) {
+        ctx.strokeRect(
+          (x - player.x) * cellSize + canvas.width / 2,
+          (y - player.y) * cellSize + canvas.height / 2,
+          cellSize, cellSize
+        );
       }
     }
+  }
+  // Salida
+  ctx.fillStyle = "green";
+  ctx.beginPath();
+  ctx.arc(
+    (exit.x - player.x + 0.5) * cellSize + canvas.width / 2,
+    (exit.y - player.y + 0.5) * cellSize + canvas.height / 2,
+    cellSize / 4, 0, Math.PI * 2
+  );
+  ctx.fill();
+}
 
-    canvas.addEventListener("click", (e) => {
-      const x = e.clientX;
-      const y = e.clientY;
-      if (y < h * 0.33) tryMove("up");
-      else if (y > h * 0.66) tryMove("down");
-      else if (x < w * 0.5) tryMove("left");
-      else tryMove("right");
-    });
+function drawPlayer() {
+  if (!showPlayer) return;
+  ctx.fillStyle = "red";
+  ctx.beginPath();
+  const angleMap = {
+    up: -Math.PI / 2,
+    right: 0,
+    down: Math.PI / 2,
+    left: Math.PI
+  };
+  let angle = angleMap[player.dir];
+  let cx = canvas.width / 2;
+  let cy = canvas.height / 2;
+  let r = cellSize / 2;
+  ctx.moveTo(cx + Math.cos(angle) * r, cy + Math.sin(angle) * r);
+  ctx.lineTo(cx + Math.cos(angle + 2.5) * r, cy + Math.sin(angle + 2.5) * r);
+  ctx.lineTo(cx + Math.cos(angle - 2.5) * r, cy + Math.sin(angle - 2.5) * r);
+  ctx.closePath();
+  ctx.fill();
+}
 
-    const initialSeed = Math.floor(Date.now() / 1000);
-    generateMaze(initialSeed);
-    update();
-  </script>
+function fadeTransition(callback) {
+  fading = true;
+  fadeOpacity = 0;
+  fadeIn = true;
+  const duration = 3000;
+  const start = performance.now();
+  navigator.vibrate(3000);
+
+  function fadeAnim(time) {
+    let progress = (time - start) / duration;
+    fadeOpacity = fadeIn ? progress : 1 - progress;
+    if (progress >= 1) {
+      if (fadeIn) {
+        callback();
+        fadeIn = false;
+        requestAnimationFrame(fadeAnim);
+      } else {
+        fading = false;
+      }
+    } else {
+      requestAnimationFrame(fadeAnim);
+    }
+  }
+
+  requestAnimationFrame(fadeAnim);
+}
+
+function drawFade() {
+  if (fading) {
+    ctx.fillStyle = `rgba(0,0,0,${fadeOpacity})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
+
+function showHint() {
+  if (hintActive) return;
+  hintActive = true;
+  navigator.vibrate([100, 100, 100]);
+
+  ctx.save();
+  let dx = exit.x - player.x;
+  let dy = exit.y - player.y;
+  let angle = Math.atan2(dy, dx);
+
+  let gradient = ctx.createLinearGradient(
+    canvas.width / 2, canvas.height / 2,
+    canvas.width / 2 + Math.cos(angle) * 200,
+    canvas.height / 2 + Math.sin(angle) * 200
+  );
+  gradient.addColorStop(0, "rgba(255,255,0,0.3)");
+  gradient.addColorStop(1, "rgba(255,255,0,0)");
+
+  ctx.fillStyle = gradient;
+  ctx.fillRect(0, 0, canvas.width, canvas.height);
+  ctx.restore();
+
+  setTimeout(() => {
+    hintActive = false;
+  }, 3000);
+}
+
+function draw() {
+  ctx.setTransform(cameraZoom, 0, 0, cameraZoom, 0, 0);
+  ctx.clearRect(0, 0, canvas.width / cameraZoom, canvas.height / cameraZoom);
+  drawMaze();
+  drawPlayer();
+  drawFade();
+  if (hintActive) showHint();
+  requestAnimationFrame(draw);
+}
+
+function changeMaze() {
+  fadeTransition(() => {
+    generateMaze(mazeSeed);
+    // La salida siempre es la misma en la esquina inferior derecha
+    exit = { x: size - 2, y: size - 2 };
+  });
+}
+
+function moveUntilStop(dir) {
+  player.dir = dir;
+  let dx = 0, dy = 0;
+  if (dir === "up") dy = -1;
+  else if (dir === "down") dy = 1;
+  else if (dir === "left") dx = -1;
+  else if (dir === "right") dx = 1;
+
+  function next() {
+    const nx = player.x + dx;
+    const ny = player.y + dy;
+    if (maze[ny] && maze[ny][nx] === 0) {
+      // Comprobar si la siguiente celda tiene más de 2 caminos
+      let paths = 0;
+      for (let [ox, oy] of [[0, -1], [1, 0], [0, 1], [-1, 0]]) {
+        if (maze[ny + oy] && maze[ny + oy][nx + ox] === 0) paths++;
+      }
+      player.x = nx;
+      player.y = ny;
+      if (paths > 2) return; // parar en bifurcación
+      setTimeout(next, 80); // movimiento suave
+    }
+  }
+  next();
+}
+
+canvas.addEventListener("touchstart", (e) => {
+  const x = e.touches[0].clientX;
+  const y = e.touches[0].clientY;
+  if (y < canvas.height / 3) moveUntilStop("up");
+  else if (y > canvas.height * 2 / 3) moveUntilStop("down");
+  else if (x < canvas.width / 2) moveUntilStop("left");
+  else moveUntilStop("right");
+});
+
+generateMaze(mazeSeed);
+exit = { x: size - 2, y: size - 2 };
+setInterval(() => {
+  mazeSeed = Date.now();
+  changeMaze();
+}, 60000); // cada 1 minuto
+
+setInterval(() => {
+  lastHintTime = Date.now();
+  showHint();
+}, hintInterval);
+
+draw();
+</script>
 </body>
 </html>
