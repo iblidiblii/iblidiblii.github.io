@@ -1,4 +1,4 @@
-<!DOCTYPE html>
+erX<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -225,7 +225,7 @@ function animate() {
   cameraX += (player.x - cameraX) * speed;
   cameraY += (player.y - cameraY) * speed;
 
-  drawMaze();
+  drawMaze(centerX, centerY);
   requestAnimationFrame(animate);
 }
 animate();
