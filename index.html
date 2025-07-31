@@ -2,13 +2,13 @@
 <html lang="es">
 <head>
   <meta charset="UTF-8">
-  <title>Laberinto Móvil</title>
+  <title>Laberinto con Líneas Finas</title>
   <style>
     html, body {
       margin: 0;
+      padding: 0;
       overflow: hidden;
       background: white;
-      touch-action: none;
     }
     canvas {
       display: block;
@@ -18,153 +18,159 @@
 </head>
 <body>
   <canvas id="canvas"></canvas>
-
   <script>
     const canvas = document.getElementById("canvas");
     const ctx = canvas.getContext("2d");
 
-    // Ajustar tamaño a móvil vertical: el ancho del laberinto será al menos igual al alto de pantalla
-    let screenWidth = window.innerWidth;
-    let screenHeight = window.innerHeight;
-    canvas.width = screenWidth;
-    canvas.height = screenHeight;
+    let width = window.innerWidth;
+    let height = window.innerHeight;
+    canvas.width = width;
+    canvas.height = height;
 
-    // Tamaño del laberinto
-    const cellSize = 20;
-    const cols = Math.floor(Math.max(screenHeight, screenWidth) / cellSize);
-    const rows = cols;
+    // Configuración del laberinto
+    const mazeCols = 31;
+    const mazeRows = 31;
+    const cellSize = Math.floor(height / 15); // para móvil: alto determina escala
+    const mazeWidth = mazeCols * cellSize;
+    const mazeHeight = mazeRows * cellSize;
 
-    const maze = Array.from({ length: rows }, () => Array(cols).fill(1)); // 1 = pared, 0 = camino
+    // Generador de laberintos (DFS)
+    function generateMaze(cols, rows) {
+      let maze = Array.from({ length: rows }, () =>
+        Array.from({ length: cols }, () => ({
+          visited: false,
+          top: true,
+          right: true,
+          bottom: true,
+          left: true,
+        }))
+      );
 
-    // Generar laberinto (DFS)
-    function generateMaze() {
-      const visited = Array.from({ length: rows }, () => Array(cols).fill(false));
-      const dx = [0, 1, 0, -1];
-      const dy = [-1, 0, 1, 0];
+      function visit(row, col) {
+        maze[row][col].visited = true;
+        const directions = [
+          [0, -1, 'top', 'bottom'],
+          [1, 0, 'right', 'left'],
+          [0, 1, 'bottom', 'top'],
+          [-1, 0, 'left', 'right']
+        ].sort(() => Math.random() - 0.5);
 
-      function isValid(x, y) {
-        return x >= 0 && y >= 0 && x < cols && y < rows;
-      }
-
-      function carve(x, y) {
-        visited[y][x] = true;
-        maze[y][x] = 0;
-        const dirs = [0, 1, 2, 3].sort(() => Math.random() - 0.5);
-        for (let i of dirs) {
-          const nx = x + dx[i] * 2;
-          const ny = y + dy[i] * 2;
-          if (isValid(nx, ny) && !visited[ny][nx]) {
-            maze[y + dy[i]][x + dx[i]] = 0;
-            carve(nx, ny);
+        for (let [dx, dy, wall, opposite] of directions) {
+          const nx = col + dx;
+          const ny = row + dy;
+          if (ny >= 0 && ny < rows && nx >= 0 && nx < cols && !maze[ny][nx].visited) {
+            maze[row][col][wall] = false;
+            maze[ny][nx][opposite] = false;
+            visit(ny, nx);
           }
         }
       }
 
-      carve(Math.floor(cols / 2), Math.floor(rows / 2));
+      visit(0, 0);
+      return maze;
     }
 
-    generateMaze();
+    const maze = generateMaze(mazeCols, mazeRows);
 
-    // Posición del jugador (empieza en el centro)
+    // Jugador
     let player = {
-      x: Math.floor(cols / 2),
-      y: Math.floor(rows / 2),
-      angle: 0 // en radianes, para dirección
+      x: Math.floor(mazeCols / 2),
+      y: Math.floor(mazeRows / 2)
     };
 
-    const exitCorner = Math.floor(Math.random() * 4); // 0=TL, 1=TR, 2=BR, 3=BL
-    let exit = { x: 0, y: 0 };
-    if (exitCorner === 0) exit = { x: 1, y: 1 };
-    if (exitCorner === 1) exit = { x: cols - 2, y: 1 };
-    if (exitCorner === 2) exit = { x: cols - 2, y: rows - 2 };
-    if (exitCorner === 3) exit = { x: 1, y: rows - 2 };
-    maze[exit.y][exit.x] = 0;
+    // Coordenadas de salida (esquina aleatoria)
+    const exitCorners = [
+      [0, 0],
+      [0, mazeCols - 1],
+      [mazeRows - 1, 0],
+      [mazeRows - 1, mazeCols - 1]
+    ];
+    const exit = exitCorners[Math.floor(Math.random() * 4)];
 
-    function draw() {
+    // Dibujar laberinto
+    function drawMaze(centerX, centerY) {
       ctx.clearRect(0, 0, canvas.width, canvas.height);
-
-      const visibleRadius = Math.floor(canvas.width / cellSize / 2);
-
-      const startX = Math.max(0, player.x - visibleRadius);
-      const startY = Math.max(0, player.y - visibleRadius);
-      const endX = Math.min(cols, player.x + visibleRadius + 1);
-      const endY = Math.min(rows, player.y + visibleRadius + 1);
-
-      const offsetX = canvas.width / 2 - player.x * cellSize;
-      const offsetY = canvas.height / 2 - player.y * cellSize;
-
-      ctx.strokeStyle = "#000";
+      ctx.strokeStyle = "black";
       ctx.lineWidth = 1;
+
+      const startX = Math.floor(centerX - canvas.width / 2 / cellSize);
+      const startY = Math.floor(centerY - canvas.height / 2 / cellSize);
+      const endX = startX + Math.ceil(canvas.width / cellSize) + 1;
+      const endY = startY + Math.ceil(canvas.height / cellSize) + 1;
 
       for (let y = startY; y < endY; y++) {
         for (let x = startX; x < endX; x++) {
-          if (maze[y][x] === 1) {
-            ctx.strokeRect(x * cellSize + offsetX, y * cellSize + offsetY, cellSize, cellSize);
+          if (x < 0 || y < 0 || x >= mazeCols || y >= mazeRows) continue;
+          const cell = maze[y][x];
+          const px = (x - centerX) * cellSize + canvas.width / 2;
+          const py = (y - centerY) * cellSize + canvas.height / 2;
+
+          ctx.beginPath();
+          if (cell.top) {
+            ctx.moveTo(px, py);
+            ctx.lineTo(px + cellSize, py);
           }
+          if (cell.right) {
+            ctx.moveTo(px + cellSize, py);
+            ctx.lineTo(px + cellSize, py + cellSize);
+          }
+          if (cell.bottom) {
+            ctx.moveTo(px, py + cellSize);
+            ctx.lineTo(px + cellSize, py + cellSize);
+          }
+          if (cell.left) {
+            ctx.moveTo(px, py);
+            ctx.lineTo(px, py + cellSize);
+          }
+          ctx.stroke();
         }
       }
 
       // Salida
+      const ex = (exit[1] - centerX) * cellSize + canvas.width / 2;
+      const ey = (exit[0] - centerY) * cellSize + canvas.height / 2;
       ctx.fillStyle = "green";
-      ctx.fillRect(exit.x * cellSize + offsetX, exit.y * cellSize + offsetY, cellSize, cellSize);
-
-      // Jugador como triángulo
-      const px = player.x * cellSize + cellSize / 2 + offsetX;
-      const py = player.y * cellSize + cellSize / 2 + offsetY;
-
-      const size = cellSize * 0.5;
-      ctx.fillStyle = "blue";
       ctx.beginPath();
-      ctx.moveTo(px + size * Math.cos(player.angle), py + size * Math.sin(player.angle));
-      ctx.lineTo(px + size * Math.cos(player.angle + 2.5), py + size * Math.sin(player.angle + 2.5));
-      ctx.lineTo(px + size * Math.cos(player.angle - 2.5), py + size * Math.sin(player.angle - 2.5));
-      ctx.closePath();
+      ctx.arc(ex + cellSize / 2, ey + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
+      ctx.fill();
+
+      // Jugador
+      const px = canvas.width / 2;
+      const py = canvas.height / 2;
+      ctx.fillStyle = "red";
+      ctx.beginPath();
+      ctx.arc(px + cellSize / 2, py + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
       ctx.fill();
     }
 
-    function canMove(x, y) {
-      return maze[y] && maze[y][x] === 0;
-    }
-
-    function move(dx, dy, angle) {
-      const nx = player.x + dx;
-      const ny = player.y + dy;
-      if (canMove(nx, ny)) {
-        player.x = nx;
-        player.y = ny;
-        player.angle = angle;
-      }
-    }
-
-    // Controles por pantalla táctil (dividir la pantalla en 4 zonas)
+    // Movimiento por pantalla táctil (cuatro zonas)
     canvas.addEventListener("touchstart", (e) => {
       const touch = e.touches[0];
       const x = touch.clientX;
       const y = touch.clientY;
 
-      const thirdW = canvas.width / 3;
-      const thirdH = canvas.height / 3;
+      const thirdX = width / 3;
+      const thirdY = height / 3;
 
-      if (y < thirdH) move(0, -1, -Math.PI / 2); // arriba
-      else if (y > 2 * thirdH) move(0, 1, Math.PI / 2); // abajo
-      else if (x < thirdW) move(-1, 0, Math.PI); // izquierda
-      else if (x > 2 * thirdW) move(1, 0, 0); // derecha
+      const cell = maze[player.y][player.x];
+
+      if (y < thirdY && !cell.top) player.y--;
+      else if (y > 2 * thirdY && !cell.bottom) player.y++;
+      else if (x < thirdX && !cell.left) player.x--;
+      else if (x > 2 * thirdX && !cell.right) player.x++;
+
+      drawMaze(player.x, player.y);
     });
 
-    // Controles por teclado
-    window.addEventListener("keydown", e => {
-      if (e.key === "ArrowUp") move(0, -1, -Math.PI / 2);
-      if (e.key === "ArrowDown") move(0, 1, Math.PI / 2);
-      if (e.key === "ArrowLeft") move(-1, 0, Math.PI);
-      if (e.key === "ArrowRight") move(1, 0, 0);
+    drawMaze(player.x, player.y);
+
+    window.addEventListener("resize", () => {
+      width = window.innerWidth;
+      height = window.innerHeight;
+      canvas.width = width;
+      canvas.height = height;
+      drawMaze(player.x, player.y);
     });
-
-    function gameLoop() {
-      draw();
-      requestAnimationFrame(gameLoop);
-    }
-
-    gameLoop();
   </script>
 </body>
 </html>
