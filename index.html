@@ -184,27 +184,30 @@ canvas.addEventListener('touchstart', e => {
   else if (x > width * 0.75) movePlayer(1, 0);
 });
 
-// Mostrar pista visual (gradiente) cada 30 segundos
+// Mostrar pista visual (gradiente direccional) cada 30 segundos
 setInterval(() => {
+  // Redibujar el laberinto para asegurarse de que no haya transformaciones activas
+  drawMaze(player.x, player.y);
+
   const dx = exit.x - player.x;
   const dy = exit.y - player.y;
   const angle = Math.atan2(dy, dx);
 
-  const grad = ctx.createRadialGradient(width/2, height/2, 0, width/2, height/2, width);
-  grad.addColorStop(0, "rgba(0,255,0,0.3)");
+  ctx.save();
+  ctx.translate(width / 2, height / 2);
+  ctx.rotate(angle);
+
+  const grad = ctx.createLinearGradient(0, 0, width, 0);
+  grad.addColorStop(0, "rgba(0,255,0,0.4)");
   grad.addColorStop(1, "rgba(0,255,0,0)");
 
-  ctx.save();
-  ctx.translate(width/2, height/2);
-  ctx.rotate(angle);
   ctx.fillStyle = grad;
-  ctx.fillRect(0, -height, width, height*2);
+  ctx.fillRect(0, -height / 2, width, height);
   ctx.restore();
 
   setTimeout(() => {
     drawMaze(player.x, player.y);
   }, 1500);
-
 }, 30000);
 
 // Inicial
