@@ -1,4 +1,4 @@
-erX<!DOCTYPE html>
+<!DOCTYPE html>
 <html lang="es">
 <head>
   <meta charset="UTF-8">
@@ -217,6 +217,50 @@ setInterval(() => {
     drawMaze(player.x, player.y); // Limpiar pista
   }, 1500);
 }, 30000);
+
+  // Overlay para fade
+const fadeOverlay = document.createElement('div');
+fadeOverlay.style.position = 'absolute';
+fadeOverlay.style.top = '0';
+fadeOverlay.style.left = '0';
+fadeOverlay.style.width = '100%';
+fadeOverlay.style.height = '100%';
+fadeOverlay.style.backgroundColor = 'black';
+fadeOverlay.style.opacity = '0';
+fadeOverlay.style.transition = 'opacity 1.5s ease';
+fadeOverlay.style.pointerEvents = 'none';
+document.body.appendChild(fadeOverlay);
+
+// Redibujar laberinto cada 60 segundos con fade y vibración
+setInterval(() => {
+  // Vibración si es compatible
+  if (navigator.vibrate) {
+    navigator.vibrate(3000);
+  }
+
+  // Fade a negro
+  fadeOverlay.style.opacity = '1';
+
+  setTimeout(() => {
+    // Guardar posición del jugador y salida
+    const oldPlayer = { x: player.x, y: player.y };
+    const oldExit = { x: exit.x, y: exit.y };
+
+    // Regenerar el laberinto
+    generateMaze();
+
+    // Restaurar posiciones
+    player.x = oldPlayer.x;
+    player.y = oldPlayer.y;
+    exit.x = oldExit.x;
+    exit.y = oldExit.y;
+
+    drawMaze(player.x, player.y);
+
+    // Fade out (volver a ver)
+    fadeOverlay.style.opacity = '0';
+  }, 1500); // Esperar mitad del tiempo en negro
+}, 60000);
 
 
 // Inicial
