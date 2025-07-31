@@ -27,12 +27,6 @@
 
 
 <script>
-
-const fogCanvas = document.getElementById('fog');
-const fogCtx = fogCanvas.getContext('2d');
-fogCanvas.width = canvas.width;
-fogCanvas.height = canvas.height;
-
   
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
@@ -41,7 +35,10 @@ let height = window.innerHeight;
 canvas.width = width;
 canvas.height = height;
 
-
+const fogCanvas = document.getElementById('fog');
+const fogCtx = fogCanvas.getContext('2d');
+fogCanvas.width = canvas.width;
+fogCanvas.height = canvas.height;
   
 // Tamaño del laberinto y celdas
 const size = 41
