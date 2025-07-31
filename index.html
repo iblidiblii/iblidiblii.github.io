@@ -171,6 +171,7 @@ function drawMaze(centerX, centerY) {
   const px = width / 2;
   const py = height / 2;
 
+    //borrar niebla eanterior
   fogCtx.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
 
   // Capa negra opaca
@@ -180,7 +181,7 @@ function drawMaze(centerX, centerY) {
   // Gradiente radial transparente en el centro
   const gradient = fogCtx.createRadialGradient(px, py, 0, px, py, fogRadius);
   gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
+  gradient.addColorStop(1, 'rgba(0,0,0,1)');
 
   fogCtx.globalCompositeOperation = 'destination-out';
   fogCtx.fillStyle = gradient;
@@ -315,7 +316,7 @@ function animate() {
   cameraY += (player.y - cameraY) * speed;
 
   drawMaze(player.x, player.y);
-
+  drawFog();
   
 
   
@@ -350,7 +351,7 @@ function animate() {
 
   ctx.restore();
 }
-drawFog();
+
 
   
   requestAnimationFrame(animate);
