@@ -10,6 +10,7 @@
       padding: 0;
       overflow: hidden;
       background: white;
+      touch-action: manipulation;
     }
     canvas {
       display: block;
@@ -28,6 +29,9 @@ let height = window.innerHeight;
 canvas.width = width;
 canvas.height = height;
 
+let cameraX = player.x;
+let cameraY = player.y;
+  
 // Tamaño del laberinto y celdas
 const cols = 21;
 const rows = 21;
@@ -88,7 +92,9 @@ function drawMaze(centerX, centerY) {
   const offsetX = width / 2 - centerX * cellSize - cellSize / 2;
   const offsetY = height / 2 - centerY * cellSize - cellSize / 2;
 
+  ctx.save();
   ctx.translate(offsetX, offsetY);
+  
   for (let y = 0; y < rows; y++) {
     for (let x = 0; x < cols; x++) {
       const cell = map[y][x];
@@ -129,7 +135,7 @@ function drawMaze(centerX, centerY) {
   ctx.fill();
 
   // Dibujar jugador
-  ctx.fillStyle = 'blue';
+  ctx.fillStyle = 'green';
   ctx.beginPath();
   ctx.moveTo(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 4);
   ctx.lineTo(player.x * cellSize + cellSize / 4, player.y * cellSize + cellSize * 3 / 4);
@@ -137,7 +143,7 @@ function drawMaze(centerX, centerY) {
   ctx.closePath();
   ctx.fill();
 
-  ctx.resetTransform();
+  ctx.restore();
 }
 
 // Movimiento
@@ -171,7 +177,7 @@ function movePlayer(dx, dy) {
 
     if (exits > 2 || (dx !== 0 && (!nextCell.left || !nextCell.right)) || (dy !== 0 && (!nextCell.top || !nextCell.bottom))) break;
   }
-  drawMaze(player.x, player.y);
+ 
 }
 
 // Tocar pantalla para mover
@@ -213,7 +219,17 @@ setInterval(() => {
 
 
 // Inicial
-drawMaze(player.x, player.y);
+function animate() {
+  // Interpolación suave (easing)
+  const speed = 0.1;
+  cameraX += (player.x - cameraX) * speed;
+  cameraY += (player.y - cameraY) * speed;
+
+  drawMaze();
+  requestAnimationFrame(animate);
+}
+animate();
+
 
 // Evitar zoom por doble click en móviles
 document.addEventListener('dblclick', function (e) {
