@@ -12,16 +12,28 @@
       background: white;
       touch-action: manipulation;
     }
-    canvas {
-      display: block;
-      background: white;
-    }
+   canvas {
+  position: absolute;
+  top: 0;
+  left: 0;
+  display: block;
+}
+
   </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<canvas id="fog"></canvas>
+
 
 <script>
+
+const fogCanvas = document.getElementById('fog');
+const fogCtx = fogCanvas.getContext('2d');
+fogCanvas.width = canvas.width;
+fogCanvas.height = canvas.height;
+
+  
 const canvas = document.getElementById('canvas');
 const ctx = canvas.getContext('2d');
 let width = window.innerWidth;
@@ -151,31 +163,36 @@ function drawMaze(centerX, centerY) {
   ctx.closePath();
   ctx.fill();
 
-    // NIEBLA DE GUERRA (gradiente circular alrededor del jugador)
-  const fogRadius = cellSize * 4;
-  const px = width / 2;
-  const py = height / 2;
-
-  // Capa negra encima
-  ctx.globalCompositeOperation = 'destination-over';
-  ctx.fillStyle = 'rgba(0, 0, 0, 0.85)';
-  ctx.fillRect(-offsetX, -offsetY, canvas.width, canvas.height);
-
-  // Agujero radial en el centro (jugador)
-  const gradient = ctx.createRadialGradient(px, py, 0, px, py, fogRadius);
-  gradient.addColorStop(0, 'rgba(0,0,0,0)');
-  gradient.addColorStop(1, 'rgba(0,0,0,0.85)');
-
-  ctx.globalCompositeOperation = 'destination-out';
-  ctx.fillStyle = gradient;
-  ctx.beginPath();
-  ctx.arc(px, py, fogRadius, 0, Math.PI * 2);
-  ctx.fill();
-  ctx.globalCompositeOperation = 'source-over';
+   
 
 
   ctx.restore();
 }
+
+  function drawFog() {
+  const fogRadius = cellSize * 4;
+  const px = width / 2;
+  const py = height / 2;
+
+  fogCtx.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
+
+  // Capa negra opaca
+  fogCtx.fillStyle = 'rgba(0,0,0,0.9)';
+  fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
+
+  // Gradiente radial transparente en el centro
+  const gradient = fogCtx.createRadialGradient(px, py, 0, px, py, fogRadius);
+  gradient.addColorStop(0, 'rgba(0,0,0,0)');
+  gradient.addColorStop(1, 'rgba(0,0,0,0.9)');
+
+  fogCtx.globalCompositeOperation = 'destination-out';
+  fogCtx.fillStyle = gradient;
+  fogCtx.beginPath();
+  fogCtx.arc(px, py, fogRadius, 0, Math.PI * 2);
+  fogCtx.fill();
+  fogCtx.globalCompositeOperation = 'source-over';
+}
+
 
 // Movimiento
 function movePlayer(dx, dy) {
@@ -336,6 +353,7 @@ function animate() {
 
   ctx.restore();
 }
+drawFog();
 
   
   requestAnimationFrame(animate);
