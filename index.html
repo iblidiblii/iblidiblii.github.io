@@ -69,23 +69,27 @@ function generateMaze() {
 }
 generateMaze();
 
+
 function drawMaze() {
   const camX = player.x * cellSize;
   const camY = player.y * cellSize;
+  const offsetX = canvas.width / 2 - camX - cellSize / 2;
+  const offsetY = canvas.height / 2 - camY - cellSize / 2;
 
-  const viewSize = Math.min(w, h) * 0.9;
-  const scale = viewSize / (cellSize * 15);
+  ctx.clearRect(0, 0, canvas.width, canvas.height);
 
-  ctx.setTransform(scale, 0, 0, scale, w/2 - camX * scale, h/2 - camY * scale);
-  ctx.clearRect(camX - w/scale, camY - h/scale, w*2/scale, h*2/scale);
+  ctx.save();
+  ctx.translate(offsetX, offsetY);
 
-  // Dibujar laberinto
+  // Laberinto con líneas finas
   ctx.strokeStyle = "black";
-  ctx.lineWidth = 0.5;
+  ctx.lineWidth = 1;
   for (let y = 0; y < mazeSize; y++) {
     for (let x = 0; x < mazeSize; x++) {
       if (maze[y][x] === 1) {
-        ctx.strokeRect(x * cellSize, y * cellSize, cellSize, cellSize);
+        ctx.beginPath();
+        ctx.rect(x * cellSize, y * cellSize, cellSize, cellSize);
+        ctx.stroke();
       }
     }
   }
@@ -93,27 +97,63 @@ function drawMaze() {
   // Salida
   ctx.fillStyle = "green";
   ctx.beginPath();
-  ctx.arc((mazeSize-2) * cellSize + cellSize/2, (mazeSize-2) * cellSize + cellSize/2, cellSize/3, 0, Math.PI*2);
+  ctx.arc(
+    exit.x * cellSize + cellSize / 2,
+    exit.y * cellSize + cellSize / 2,
+    cellSize / 4,
+    0,
+    Math.PI * 2
+  );
   ctx.fill();
 
-  // Jugador (flecha)
+  // Jugador (triángulo)
+  ctx.fillStyle = "blue";
+  ctx.beginPath();
   const px = player.x * cellSize + cellSize / 2;
   const py = player.y * cellSize + cellSize / 2;
-  player.angle += (player.targetAngle - player.angle) * 0.15;
-
+  const s = cellSize / 2;
   ctx.save();
   ctx.translate(px, py);
-  ctx.rotate(player.angle);
-  ctx.fillStyle = "red";
-  ctx.beginPath();
-  ctx.moveTo(0, -cellSize * 0.5);
-  ctx.lineTo(cellSize * 0.3, cellSize * 0.5);
-  ctx.lineTo(-cellSize * 0.3, cellSize * 0.5);
+  let angle = 0;
+  if (player.dir === "up") angle = 0;
+  else if (player.dir === "right") angle = Math.PI / 2;
+  else if (player.dir === "down") angle = Math.PI;
+  else if (player.dir === "left") angle = -Math.PI / 2;
+  ctx.rotate(angle);
+  ctx.moveTo(0, -s / 1.5);
+  ctx.lineTo(-s / 2.5, s / 2);
+  ctx.lineTo(s / 2.5, s / 2);
   ctx.closePath();
   ctx.fill();
   ctx.restore();
-}
 
+  // Pista (gradiente direccional)
+  if (showHint) {
+    const dx = exit.x - player.x;
+    const dy = exit.y - player.y;
+    const mag = Math.sqrt(dx * dx + dy * dy);
+    if (mag > 0) {
+      const nx = dx / mag;
+      const ny = dy / mag;
+      const gx = px + nx * cellSize * 3;
+      const gy = py + ny * cellSize * 3;
+      let grad = ctx.createLinearGradient(px, py, gx, gy);
+      grad.addColorStop(0, "rgba(0,255,0,0.3)");
+      grad.addColorStop(1, "rgba(0,255,0,0)");
+      ctx.fillStyle = grad;
+      ctx.beginPath();
+      ctx.arc(px, py, cellSize * 3, 0, Math.PI * 2);
+      ctx.fill();
+    }
+  }
+
+  ctx.restore();
+
+  if (isFading) {
+    ctx.fillStyle = `rgba(0, 0, 0, ${fadeOpacity})`;
+    ctx.fillRect(0, 0, canvas.width, canvas.height);
+  }
+}
 function movePlayer() {
   const nx = player.x + direction.x;
   const ny = player.y + direction.y;
