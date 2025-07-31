@@ -32,8 +32,9 @@ canvas.height = height;
 
   
 // Tamaño del laberinto y celdas
-const cols = 21;
-const rows = 21;
+const size = 41
+const cols = size;
+const rows = size;
 const cellSize = Math.floor(height / 15);
 const map = [];
 let player = { x: Math.floor(cols/2), y: Math.floor(rows/2) };
@@ -130,7 +131,7 @@ function drawMaze(centerX, centerY) {
   }
 
   // Dibujar salida
-  ctx.fillStyle = 'green';
+  ctx.fillStyle = 'red';
   ctx.beginPath();
   ctx.arc(exit.x * cellSize + cellSize / 2, exit.y * cellSize + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
   ctx.fill();
