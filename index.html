@@ -33,13 +33,12 @@
 const canvas = document.getElementById("canvas");
 const ctx = canvas.getContext("2d");
 let width, height, cellSize = 20;
-let mazeSize = 31; // must be odd
+let mazeSize = 31;
 let maze = [];
 let player = { x: 0, y: 0, angle: 0, targetAngle: 0 };
 let exit = { x: 0, y: 0 };
 let camera = { x: 0, y: 0 };
 let seed = Date.now();
-let lastDirection = null;
 let fade = document.getElementById("fade");
 let lastMazeChange = Date.now();
 let lastHintTime = Date.now();
@@ -89,6 +88,39 @@ function generateMaze() {
   player.y = Math.floor(mazeSize / 2);
 }
 
+function drawHintGradient() {
+  if (showHint) {
+    const dx = exit.x - player.x;
+    const dy = exit.y - player.y;
+    const angle = Math.atan2(dy, dx);
+    const grad = ctx.createRadialGradient(
+      width/2, height/2, 10,
+      width/2 + Math.cos(angle)*width, height/2 + Math.sin(angle)*height, width
+    );
+    grad.addColorStop(0, "rgba(0,255,0,0.2)");
+    grad.addColorStop(1, "rgba(0,255,0,0)");
+    ctx.fillStyle = grad;
+    ctx.fillRect(0,0,width,height);
+  }
+}
+
+function drawPlayer() {
+  ctx.save();
+  const px = player.x * cellSize + cellSize / 2 - camera.x;
+  const py = player.y * cellSize + cellSize / 2 - camera.y;
+  player.angle += (player.targetAngle - player.angle) * 0.2;
+  ctx.translate(px, py);
+  ctx.rotate(player.angle);
+  ctx.beginPath();
+  ctx.moveTo(0, -cellSize / 2.5);
+  ctx.lineTo(cellSize / 3, cellSize / 2.5);
+  ctx.lineTo(-cellSize / 3, cellSize / 2.5);
+  ctx.closePath();
+  ctx.fillStyle = "black";
+  ctx.fill();
+  ctx.restore();
+}
+
 function drawMaze() {
   ctx.clearRect(0, 0, width, height);
   ctx.lineWidth = 1;
@@ -114,36 +146,11 @@ function drawMaze() {
   ctx.arc(exit.x * cellSize + cellSize/2 - camera.x, exit.y * cellSize + cellSize/2 - camera.y, cellSize/4, 0, Math.PI * 2);
   ctx.fill();
 
-  // Pista
-  if (showHint) {
-    const dx = exit.x - player.x;
-    const dy = exit.y - player.y;
-    const angle = Math.atan2(dy, dx);
-    const grad = ctx.createRadialGradient(
-      width/2, height/2, 10,
-      width/2 + Math.cos(angle)*width, height/2 + Math.sin(angle)*height, width
-    );
-    grad.addColorStop(0, "rgba(0,255,0,0.2)");
-    grad.addColorStop(1, "rgba(0,255,0,0)");
-    ctx.fillStyle = grad;
-    ctx.fillRect(0,0,width,height);
-  }
+  // Pista debajo del jugador
+  drawHintGradient();
 
-  // Jugador
-  ctx.save();
-  const px = player.x * cellSize + cellSize / 2 - camera.x;
-  const py = player.y * cellSize + cellSize / 2 - camera.y;
-  player.angle += (player.targetAngle - player.angle) * 0.2;
-  ctx.translate(px, py);
-  ctx.rotate(player.angle);
-  ctx.beginPath();
-  ctx.moveTo(0, -cellSize / 2.5);
-  ctx.lineTo(cellSize / 3, cellSize / 2.5);
-  ctx.lineTo(-cellSize / 3, cellSize / 2.5);
-  ctx.closePath();
-  ctx.fillStyle = "black";
-  ctx.fill();
-  ctx.restore();
+  // Jugador encima
+  drawPlayer();
 }
 
 function fadeInOut(callback) {
@@ -200,7 +207,6 @@ function moveDirection(dir) {
   let nx = player.x + dx;
   let ny = player.y + dy;
   while (canMove(nx, ny)) {
-    // check if bifurcation
     const options = [
       canMove(nx+1, ny),
       canMove(nx-1, ny),
