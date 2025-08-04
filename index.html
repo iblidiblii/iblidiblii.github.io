@@ -47,6 +47,7 @@ const rows = size;
 const cellSize = Math.floor(height / 15);
 const map = [];
 let player = { x: Math.floor(cols/2), y: Math.floor(rows/2) };
+let playerDirection = 0;
   
 let cameraX = player.x;
 let cameraY = player.y;
@@ -146,19 +147,30 @@ function drawMaze(centerX, centerY) {
   ctx.fill();
 
   // Dibujar jugador
-  ctx.fillStyle = 'blue';
-  ctx.beginPath();
-  ctx.moveTo(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 4);
-  ctx.lineTo(player.x * cellSize + cellSize / 4, player.y * cellSize + cellSize * 3 / 4);
-  ctx.lineTo(player.x * cellSize + cellSize * 3 / 4, player.y * cellSize + cellSize * 3 / 4);
-  ctx.closePath();
-  ctx.fill();
+  const px = player.x * cellSize + cellSize / 2;
+const py = player.y * cellSize + cellSize / 2;
+
+ctx.save();
+ctx.translate(px, py);
+ctx.rotate(playerDirection);
+
+ctx.beginPath();
+ctx.moveTo(0, -cellSize / 3); // punta
+ctx.lineTo(-cellSize / 4, cellSize / 4); // izquierda
+ctx.lineTo(cellSize / 4, cellSize / 4); // derecha
+ctx.closePath();
+ctx.fillStyle = 'blue';
+ctx.fill();
 
   ctx.restore();
 }
 
 // Movimiento
 function movePlayer(dx, dy) {
+if (dx !== 0 || dy !== 0) {
+    playerDirection = Math.atan2(dy, dx);
+}
+  
   while (true) {
     const cell = map[player.y][player.x];
     let nextX = player.x + dx;
