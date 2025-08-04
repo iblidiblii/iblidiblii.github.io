@@ -226,7 +226,7 @@ function drawPista() {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const offset = 150; // distancia desde el jugador
+    const offset = 180; // distancia desde el jugador
     const width = 160; // ancho del gradiente
     const height = 50; // altura del gradiente
 
@@ -241,7 +241,7 @@ function drawPista() {
     pistaCtx.translate(offset, 0);
 
     // Creamos un gradiente radial que parecerá elíptico por escala
-    const gradient = pistaCtx.createRadialGradient(0, 0, 10, 0, 0, width);
+    const gradient = pistaCtx.createLinearGradient( -width/2,0,width/2, 0);
     gradient.addColorStop(0, 'rgba(0,255,0,0.25)');
     gradient.addColorStop(1, 'rgba(0,255,0,0)');
 
