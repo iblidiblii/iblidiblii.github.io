@@ -147,13 +147,21 @@ function drawMaze(centerX, centerY) {
 
   // Dibujar jugador
 
-ctx.fillStyle = "blue";
+ctx.save();
+ctx.translate(playerScreenX, playerScreenY);
+ctx.rotate(player.angle);
+
+// Triángulo isósceles apuntando en la dirección del movimiento
 ctx.beginPath();
-ctx.arc(playerScreenX, playerScreenY, playerSize, 0, Math.PI * 2);
+ctx.moveTo(0, -playerSize); // vértice superior
+ctx.lineTo(playerSize * 0.6, playerSize); // base derecha
+ctx.lineTo(-playerSize * 0.6, playerSize); // base izquierda
+ctx.closePath();
+
+ctx.fillStyle = "blue";
 ctx.fill();
-
-
 ctx.restore();
+
 }
 
 // Movimiento
@@ -184,7 +192,7 @@ function movePlayer(dx, dy) {
 
     player.x = nextX;
     player.y = nextY;
-    player.angle = Math.atan2(dy, dx)
+    player.angle = Math.atan2(dy, dx);
 
     if (exits > 2 || (dx !== 0 && (!nextCell.left || !nextCell.right)) || (dy !== 0 && (!nextCell.top || !nextCell.bottom))) break;
   }
