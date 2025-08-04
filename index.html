@@ -215,9 +215,16 @@ canvas.addEventListener('touchstart', e => {
   else if (x > width * 0.75) movePlayer(1, 0);
 });
 
-
+let mostrandoPista = false;
+let pistaStartTime = 0;
+let pistaFadeIn = true;
+let pistaOpacity = 0;
+  
 function drawPista() {
+  pistaCtx.save();
+    pistaCtx.globalAlpha = pistaOpacity;
     pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
+    
 
     const dx = exit.x - player.x;
     const dy = exit.y - player.y;
@@ -262,13 +269,42 @@ function drawPista() {
 
 // Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
 function mostrarPista() {
-    drawPista();
-    navigator.vibrate?.([100, 100, 100]); // tres pulsos
-  
-    setTimeout(() => {
-        pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
-    }, 3000);
+  if (mostrandoPista) return;
+
+  mostrandoPista = true;
+  pistaFadeIn = true;
+  pistaOpacity = 0;
+  pistaStartTime = performance.now();
+  navigator.vibrate?.([100, 100, 100]);
+
+  animatePista();
 }
+function animatePista() {
+  if (!mostrandoPista) return;
+
+  const tiempo = performance.now() - pistaStartTime;
+
+  if (pistaFadeIn) {
+    pistaOpacity = Math.min(tiempo / 1000, 1); // Fade in en 1 segundo
+    if (pistaOpacity >= 1) {
+      pistaFadeIn = false;
+      pistaStartTime = performance.now(); // Empezar fade out
+    }
+  } else {
+    pistaOpacity = 1 - Math.min(tiempo / 1000, 1); // Fade out en 1 segundo
+    if (pistaOpacity <= 0) {
+      mostrandoPista = false;
+      pistaOpacity = 0;
+      pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
+      return;
+    }
+  }
+
+  pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
+  drawPista();
+  requestAnimationFrame(animatePista);
+}
+  
 
 setInterval(mostrarPista, hintTime); // cada 3 segundos
 
