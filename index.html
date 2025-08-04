@@ -46,7 +46,7 @@ const cols = size;
 const rows = size;
 const cellSize = Math.floor(height / 15);
 const map = [];
-let player = { x: Math.floor(cols/2), y: Math.floor(rows/2) };
+let player = { x: Math.floor(cols/2), y: Math.floor(rows/2), angle: 0 };
   
 let cameraX = player.x;
 let cameraY = player.y;
@@ -146,15 +146,21 @@ function drawMaze(centerX, centerY) {
   ctx.fill();
 
   // Dibujar jugador
-  ctx.fillStyle = 'blue';
-  ctx.beginPath();
-  ctx.moveTo(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 4);
-  ctx.lineTo(player.x * cellSize + cellSize / 4, player.y * cellSize + cellSize * 3 / 4);
-  ctx.lineTo(player.x * cellSize + cellSize * 3 / 4, player.y * cellSize + cellSize * 3 / 4);
-  ctx.closePath();
-  ctx.fill();
+  ctx.save();
+ctx.translate(playerScreenX, playerScreenY);
+ctx.rotate(player.angle);
 
-  ctx.restore();
+// Triángulo isósceles apuntando en la dirección del movimiento
+ctx.beginPath();
+ctx.moveTo(0, -playerSize); // vértice superior
+ctx.lineTo(playerSize * 0.6, playerSize); // base derecha
+ctx.lineTo(-playerSize * 0.6, playerSize); // base izquierda
+ctx.closePath();
+
+ctx.fillStyle = "blue";
+ctx.fill();
+
+ctx.restore();
 }
 
 // Movimiento
@@ -185,6 +191,7 @@ function movePlayer(dx, dy) {
 
     player.x = nextX;
     player.y = nextY;
+    player.angle = Math.atan2(dy, dx)
 
     if (exits > 2 || (dx !== 0 && (!nextCell.left || !nextCell.right)) || (dy !== 0 && (!nextCell.top || !nextCell.bottom))) break;
   }
