@@ -148,10 +148,7 @@ function drawMaze(centerX, centerY) {
   // Dibujar jugador
   ctx.fillStyle = 'blue';
   ctx.beginPath();
-  ctx.moveTo(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 4);
-  ctx.lineTo(player.x * cellSize + cellSize / 4, player.y * cellSize + cellSize * 3 / 4);
-  ctx.lineTo(player.x * cellSize + cellSize * 3 / 4, player.y * cellSize + cellSize * 3 / 4);
-  ctx.closePath();
+  ctx.arc(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 2, cellSize / 4, 0, Math.PI * 2);
   ctx.fill();
 
   
