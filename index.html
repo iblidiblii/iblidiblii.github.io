@@ -41,7 +41,7 @@ fogCanvas.height = height;
 
   
 // Tamaño del laberinto y celdas
-const size = 41
+const size = 21
 const cols = size;
 const rows = size;
 const cellSize = Math.floor(height / 15);
@@ -50,6 +50,9 @@ let player = { x: Math.floor(cols/2), y: Math.floor(rows/2) };
   
 let cameraX = player.x;
 let cameraY = player.y;
+
+let hasWon = false;
+  
 // Salida en una esquina aleatoria
 const corners = [
   { x: 0, y: 0 },
@@ -187,7 +190,9 @@ function movePlayer(dx, dy) {
 
     if (exits > 2 || (dx !== 0 && (!nextCell.left || !nextCell.right)) || (dy !== 0 && (!nextCell.top || !nextCell.bottom))) break;
   }
- 
+ if (player.x === exit.x && player.y === exit.y && !hasWon) {
+  hasWon = true;
+ }
 }
 
 // Tocar pantalla para mover
@@ -305,7 +310,28 @@ function drawFog(centerX, centerY) {
 }
   
 
+function drawWinMessage() {
+  const message = "Enhorabona, has eixit!";
+  const boxWidth = 300;
+  const boxHeight = 100;
+  const x = (width - boxWidth) / 2;
+  const y = (height - boxHeight) / 2;
 
+  fogCtx.fillStyle = "rgba(255, 255, 255, 0.95)";
+  fogCtx.strokeStyle = "#000";
+  fogCtx.lineWidth = 3;
+  fogCtx.beginPath();
+  fogCtx.roundRect(x, y, boxWidth, boxHeight, 20);
+  fogCtx.fill();
+  fogCtx.stroke();
+
+  fogCtx.fillStyle = "#000";
+  fogCtx.font = "20px sans-serif";
+  fogCtx.textAlign = "center";
+  fogCtx.textBaseline = "middle";
+  fogCtx.fillText(message, width / 2, height / 2);
+}
+  
   
 // Inicial
 function animate() {
@@ -316,6 +342,10 @@ function animate() {
 
   drawMaze(cameraX, cameraY);
   drawFog(cameraX, cameraY);
+  if (hasWon) {
+  drawWinMessage();
+  }
+  
   
   requestAnimationFrame(animate);
 }
