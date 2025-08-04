@@ -227,33 +227,40 @@ canvas.addEventListener('touchstart', e => {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const innerOffset = 40; // distancia desde el jugador donde empieza la pista
-    const radius = 160;     // hasta dónde llega
-    const angleWidth = Math.PI / 6; // apertura (más = más ancho el haz)
+    const innerOffset = 40; // distancia desde el jugador
+    const radius = 160;     // radio total del haz
+    const angleWidth = Math.PI / 4; // apertura del haz (más = más ancho)
 
-    const startAngle = angle - angleWidth;
-    const endAngle = angle + angleWidth;
-
-    // Coordenadas del centro desplazado (para que no empiece justo encima del jugador)
+    // Punto central desplazado donde empieza el haz
     const arcX = cx + Math.cos(angle) * innerOffset;
     const arcY = cy + Math.sin(angle) * innerOffset;
 
-    // Gradiente radial desde el centro del arco
+    // Crear un gradiente radial suave
     const gradient = pistaCtx.createRadialGradient(
-        arcX, arcY, innerOffset,   // centro y radio inicial
-        arcX, arcY, radius         // centro y radio final
+        arcX, arcY, radius * 0.2,
+        arcX, arcY, radius
     );
     gradient.addColorStop(0, 'rgba(0,255,0,0.3)');
     gradient.addColorStop(1, 'rgba(0,255,0,0)');
 
     pistaCtx.fillStyle = gradient;
+
+    // Dibujar una forma de "cuarto de círculo difuminado"
     pistaCtx.beginPath();
     pistaCtx.moveTo(arcX, arcY);
-    pistaCtx.arc(arcX, arcY, radius, startAngle, endAngle);
+    pistaCtx.arc(arcX, arcY, radius, angle - angleWidth, angle + angleWidth, false);
+    
+    // Borde curvado de cierre en la parte interna
+    const backRadius = radius * 0.5;
+    const backAngle = angle + angleWidth;
+    const backX = arcX + Math.cos(backAngle) * backRadius;
+    const backY = arcY + Math.sin(backAngle) * backRadius;
+    pistaCtx.quadraticCurveTo(arcX, arcY, backX, backY);
+
     pistaCtx.closePath();
     pistaCtx.fill();
-}
-
+  }
+  
   
 
 // Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
