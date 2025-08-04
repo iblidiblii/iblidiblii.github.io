@@ -226,9 +226,9 @@ function drawPista() {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const offset = 180; // distancia desde el jugador
+    const offset = 200; // distancia desde el jugador
     const width = 160; // ancho del gradiente
-    const height = 50; // altura del gradiente
+    const height = 100; // altura del gradiente
 
     // Guardamos el estado original
     pistaCtx.save();
@@ -262,6 +262,27 @@ function drawPista() {
 
 // Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
 function mostrarPista() {
+
+  if (mostrandoPista) {
+  const tiempo = performance.now() - pistaStartTime;
+
+  if (pistaFadeIn) {
+    pistaOpacity = Math.min(tiempo / 1000, 1); // fade in en 1 segundo
+    if (pistaOpacity >= 1) {
+      pistaFadeIn = false;
+      pistaStartTime = performance.now();
+    }
+  } else {
+    pistaOpacity = 1 - Math.min(tiempo / 1000, 1); // fade out en 1 segundo
+    if (pistaOpacity <= 0) {
+      mostrandoPista = false;
+      pistaOpacity = 0;
+    }
+  }
+}
+  
+
+  
     drawPista();
     navigator.vibrate?.([100, 100, 100]); // tres pulsos
   
