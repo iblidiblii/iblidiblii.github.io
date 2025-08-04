@@ -237,6 +237,11 @@ setInterval(() => {
   fogCtx.closePath();
   fogCtx.fill();
 
+fogCtx.fillStyle = 'green';
+fogCtx.fillRect(-10, -10, 20, 20);
+  
+
+  
   fogCtx.restore();
   Debug.Log("pista");
   // Limpiar la pista después de 1.5s (redibujar la niebla)
