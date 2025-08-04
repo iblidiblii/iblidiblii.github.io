@@ -148,12 +148,20 @@ function drawMaze(centerX, centerY) {
   // Dibujar jugador
 
 
-ctx.fillStyle = "blue";
-ctx.beginPath();
-ctx.arc(playerScreenX, playerScreenY, playerSize, 0, Math.PI * 2);
-ctx.fill();
+ctx.save();
+ctx.translate(player.x, player.y);
+ctx.rotate(player.angle);
 
-  ctx.restore();
+// Triángulo isósceles apuntando en la dirección del movimiento
+ctx.beginPath();
+ctx.moveTo(0, -cellSize); // vértice superior
+ctx.lineTo(cellSize * 0.6, cellSize); // base derecha
+ctx.lineTo(-cellSize * 0.6, cellSize); // base izquierda
+ctx.closePath();
+
+ctx.fillStyle = "blue";
+ctx.fill();
+ctx.restore();
 
 }
 
