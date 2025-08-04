@@ -216,7 +216,7 @@ canvas.addEventListener('touchstart', e => {
 });
 
 
-  function drawPista() {
+function drawPista() {
     pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
 
     const dx = exit.x - player.x;
@@ -226,35 +226,36 @@ canvas.addEventListener('touchstart', e => {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const offset = 80; // Distancia desde el jugador hasta el inicio de la pista
-    const width = 160; // Ancho total de la elipse
-    const height = 100; // Altura total de la elipse (vertical)
+    const offset = 150; // distancia desde el jugador
+    const width = 200; // ancho del gradiente
+    const height = 100; // altura del gradiente
 
+    // Guardamos el estado original
     pistaCtx.save();
 
-    // Mover al centro del jugador
+    // Movemos al centro del canvas (jugador)
     pistaCtx.translate(cx, cy);
-    // Rotar en dirección a la salida
+    // Rotamos hacia la salida
     pistaCtx.rotate(angle);
-    // Mover el haz hacia delante
+    // Movemos el foco hacia delante
     pistaCtx.translate(offset, 0);
 
-    // Crear gradiente radial (más concentrado al inicio, difuminado hacia fuera)
+    // Creamos un gradiente radial que parecerá elíptico por escala
     const gradient = pistaCtx.createRadialGradient(0, 0, 10, 0, 0, width);
-    gradient.addColorStop(0, 'rgba(0, 255, 0, 0.25)');
-    gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
+    gradient.addColorStop(0, 'rgba(0,255,0,0.25)');
+    gradient.addColorStop(1, 'rgba(0,255,0,0)');
 
     pistaCtx.fillStyle = gradient;
 
-    // Dibujar media elipse (media burbuja de luz)
+    // Dibujamos una elipse con el gradiente
     pistaCtx.beginPath();
-    pistaCtx.ellipse(0, 0, width, height, 0, -Math.PI / 2, Math.PI / 2);
-    pistaCtx.lineTo(0, 0); // Cerrar el semicírculo
-    pistaCtx.closePath();
+    pistaCtx.ellipse(0, 0, width, height, 0, 0, 2 * Math.PI);
     pistaCtx.fill();
 
+    // Restauramos el estado original del canvas
     pistaCtx.restore();
-  }
+}
+  
   
   
   
