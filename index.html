@@ -238,7 +238,7 @@ setInterval(() => {
   fogCtx.fill();
 
   fogCtx.restore();
-
+  Debug.Log("pista");
   // Limpiar la pista después de 1.5s (redibujar la niebla)
   setTimeout(() => {
     drawFog(player.x, player.y);
