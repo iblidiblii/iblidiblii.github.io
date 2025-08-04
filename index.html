@@ -288,7 +288,25 @@ setInterval(() => {
   }, 1500); // Esperar mitad del tiempo en negro
 }, 60000);
 
+function drawFog(centerX, centerY) {
+  fogCtx.clearRect(0, 0, fogCanvas.width, fogCanvas.height);
 
+  const radius = cellSize * 4; // radio de visibilidad
+  const gradient = fogCtx.createRadialGradient(
+    width / 2, height / 2, 0,      // centro en la pantalla
+    width / 2, height / 2, radius  // borde exterior del gradiente
+  );
+
+  gradient.addColorStop(0, 'rgba(0, 0, 0, 0)');
+  gradient.addColorStop(1, 'rgba(0, 0, 0, 0.95)');
+
+  fogCtx.fillStyle = gradient;
+  fogCtx.fillRect(0, 0, fogCanvas.width, fogCanvas.height);
+}
+  
+
+
+  
 // Inicial
 function animate() {
   // Interpolación suave (easing)
@@ -297,6 +315,8 @@ function animate() {
   cameraY += (player.y - cameraY) * speed;
 
   drawMaze(cameraX, cameraY);
+  drawFog(cameraX, cameraY);
+  
   requestAnimationFrame(animate);
 }
 animate();
