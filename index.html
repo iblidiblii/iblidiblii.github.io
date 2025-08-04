@@ -226,36 +226,36 @@ canvas.addEventListener('touchstart', e => {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const offset = 60; // distancia desde el jugador
-    const width = 200; // ancho del gradiente
-    const height = 100; // altura del gradiente
+    const offset = 80; // Distancia desde el jugador hasta el inicio de la pista
+    const width = 160; // Ancho total de la elipse
+    const height = 100; // Altura total de la elipse (vertical)
 
-    // Guardamos el estado original
     pistaCtx.save();
 
-    // Movemos al centro del canvas (jugador)
+    // Mover al centro del jugador
     pistaCtx.translate(cx, cy);
-    // Rotamos hacia la salida
+    // Rotar en dirección a la salida
     pistaCtx.rotate(angle);
-    // Movemos el foco hacia delante
+    // Mover el haz hacia delante
     pistaCtx.translate(offset, 0);
 
-    // Creamos un gradiente radial que parecerá elíptico por escala
+    // Crear gradiente radial (más concentrado al inicio, difuminado hacia fuera)
     const gradient = pistaCtx.createRadialGradient(0, 0, 10, 0, 0, width);
-    gradient.addColorStop(0, 'rgba(0,255,0,0.25)');
-    gradient.addColorStop(1, 'rgba(0,255,0,0)');
+    gradient.addColorStop(0, 'rgba(0, 255, 0, 0.25)');
+    gradient.addColorStop(1, 'rgba(0, 255, 0, 0)');
 
     pistaCtx.fillStyle = gradient;
 
-    // Dibujamos una elipse con el gradiente
+    // Dibujar media elipse (media burbuja de luz)
     pistaCtx.beginPath();
-    pistaCtx.ellipse(0, 0, width, height, 0, 0, 2 * Math.PI);
+    pistaCtx.ellipse(0, 0, width, height, 0, -Math.PI / 2, Math.PI / 2);
+    pistaCtx.lineTo(0, 0); // Cerrar el semicírculo
+    pistaCtx.closePath();
     pistaCtx.fill();
 
-    // Restauramos el estado original del canvas
     pistaCtx.restore();
-}
-
+  }
+  
   
   
 
