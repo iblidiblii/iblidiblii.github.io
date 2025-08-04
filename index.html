@@ -351,6 +351,9 @@ function animate() {
   drawMaze(cameraX, cameraY);
   drawFog(cameraX, cameraY);
   if (hasWon) {
+    if (navigator.vibrate) {
+    navigator.vibrate(3000);
+    }
   drawWinMessage();
   }
   
