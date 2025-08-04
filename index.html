@@ -146,9 +146,12 @@ function drawMaze(centerX, centerY) {
   ctx.fill();
 
   // Dibujar jugador
+  ctx.fillStyle = 'blue';
   ctx.beginPath();
-  ctx.fillStyle = "blue";
-  ctx.arc(player.x, player.y, 10, 0, Math.PI * 2); // Círculo azul con radio 10
+  ctx.moveTo(player.x * cellSize + cellSize / 2, player.y * cellSize + cellSize / 4);
+  ctx.lineTo(player.x * cellSize + cellSize / 4, player.y * cellSize + cellSize * 3 / 4);
+  ctx.lineTo(player.x * cellSize + cellSize * 3 / 4, player.y * cellSize + cellSize * 3 / 4);
+  ctx.closePath();
   ctx.fill();
 
   
