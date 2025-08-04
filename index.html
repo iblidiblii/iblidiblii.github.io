@@ -207,46 +207,43 @@ canvas.addEventListener('touchstart', e => {
 
 // Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
 setInterval(() => {
-  drawMaze(player.x, player.y); // Limpia primero
+  const dx = exit.x - player.x;
+  const dy = exit.y - player.y;
+  const angle = Math.atan2(dy, dx);
 
-  const dx = exit.x - player.x;
-  const dy = exit.y - player.y;
-  const angle = Math.atan2(dy, dx); // Ángulo hacia la salida
+  const playerScreenX = width / 2;
+  const playerScreenY = height / 2;
 
-  ctx.save();
+  fogCtx.save();
+  fogCtx.translate(playerScreenX, playerScreenY);
+  fogCtx.rotate(angle);
 
-  // Coordenadas del jugador en pantalla
-  const playerScreenX = width / 2;
-  const playerScreenY = height / 2;
+  // Crear gradiente verde hacia la salida
+  const gradient = fogCtx.createLinearGradient(0, 0, cellSize * 6, 0);
+  gradient.addColorStop(0, 'rgba(0,255,0,0.4)');
+  gradient.addColorStop(1, 'rgba(0,255,0,0)');
 
-  ctx.translate(playerScreenX, playerScreenY);
-  ctx.rotate(angle);
+  fogCtx.fillStyle = gradient;
 
-  // Crear gradiente lineal hacia la derecha (hacia la salida)
-  const grad = ctx.createLinearGradient(0, 0, cellSize * 6, 0);
-  grad.addColorStop(0, 'rgba(0,255,0,0.4)');
-  grad.addColorStop(1, 'rgba(0,255,0,0)');
+  const widthCone = cellSize * 2;
+  const lengthCone = cellSize * 6;
 
-  ctx.fillStyle = grad;
+  fogCtx.beginPath();
+  fogCtx.moveTo(0, -widthCone / 2);
+  fogCtx.lineTo(lengthCone, -widthCone / 4);
+  fogCtx.lineTo(lengthCone, widthCone / 4);
+  fogCtx.lineTo(0, widthCone / 2);
+  fogCtx.closePath();
+  fogCtx.fill();
 
-  // Dibuja un haz tipo "cono" o flecha difusa
-  const widthCone = cellSize * 2;
-  const lengthCone = cellSize * 6;
-  ctx.beginPath();
-  ctx.moveTo(0, -widthCone / 2);
-  ctx.lineTo(lengthCone, -widthCone / 4);
-  ctx.lineTo(lengthCone, widthCone / 4);
-  ctx.lineTo(0, widthCone / 2);
-  ctx.closePath();
-  ctx.fill();
+  fogCtx.restore();
 
-  ctx.restore();
-
-  // Limpiar pista después de 1.5 segundos
-  setTimeout(() => {
-    drawMaze(player.x, player.y);
-  }, 1500);
+  // Limpiar la pista después de 1.5s (redibujar la niebla)
+  setTimeout(() => {
+    drawFog(player.x, player.y);
+  }, 1500);
 }, 30000);
+
 
 
   // Overlay para fade
