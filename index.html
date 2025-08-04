@@ -216,7 +216,6 @@ canvas.addEventListener('touchstart', e => {
 });
 
 
-  
   function drawPista() {
     pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
 
@@ -227,31 +226,36 @@ canvas.addEventListener('touchstart', e => {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const innerOffset = 60; // dónde empieza el haz (más lejos del jugador)
-    const radius = 160;     // radio máximo del haz
-    const spread = Math.PI / 3; // apertura del haz
+    const offset = 60; // distancia desde el jugador
+    const width = 200; // ancho del gradiente
+    const height = 100; // altura del gradiente
 
-    // Centro del haz, desplazado desde el jugador
-    const arcX = cx + Math.cos(angle) * innerOffset;
-    const arcY = cy + Math.sin(angle) * innerOffset;
+    // Guardamos el estado original
+    pistaCtx.save();
 
-    // Gradiente radial desde el centro del haz
-    const gradient = pistaCtx.createRadialGradient(
-        arcX, arcY, radius * 0.2,
-        arcX, arcY, radius
-    );
-    gradient.addColorStop(0, 'rgba(245,255,0,0.25)');
-    gradient.addColorStop(1, 'rgba(245,255,0,0)');
+    // Movemos al centro del canvas (jugador)
+    pistaCtx.translate(cx, cy);
+    // Rotamos hacia la salida
+    pistaCtx.rotate(angle);
+    // Movemos el foco hacia delante
+    pistaCtx.translate(offset, 0);
+
+    // Creamos un gradiente radial que parecerá elíptico por escala
+    const gradient = pistaCtx.createRadialGradient(0, 0, 10, 0, 0, width);
+    gradient.addColorStop(0, 'rgba(0,255,0,0.25)');
+    gradient.addColorStop(1, 'rgba(0,255,0,0)');
 
     pistaCtx.fillStyle = gradient;
 
-    // Solo pintamos un sector del arco (como un foco), sin líneas rectas
+    // Dibujamos una elipse con el gradiente
     pistaCtx.beginPath();
-    pistaCtx.arc(arcX, arcY, radius, angle - spread / 2, angle + spread / 2, false);
-    pistaCtx.lineTo(arcX, arcY); // cerrar la forma al centro del arco
-    pistaCtx.closePath();
+    pistaCtx.ellipse(0, 0, width, height, 0, 0, 2 * Math.PI);
     pistaCtx.fill();
-  }
+
+    // Restauramos el estado original del canvas
+    pistaCtx.restore();
+}
+
   
   
 
