@@ -15,11 +15,14 @@
     canvas {
       display: block;
       background: white;
+      pointer-events: none;
+      position:absolute;
     }
   </style>
 </head>
 <body>
 <canvas id="canvas"></canvas>
+<canvas id ="fog">hola</canvas>
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -29,6 +32,10 @@ let height = window.innerHeight;
 canvas.width = width;
 canvas.height = height;
 
+const fogCanvas = document.getElementById('fog');
+const fogCtx = fogCanvas.getContext('2d');
+fogCanvas.width = width;
+fogCanvas.height = height;
 
   
 // Tamaño del laberinto y celdas
