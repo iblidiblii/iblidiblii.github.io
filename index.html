@@ -217,6 +217,7 @@ canvas.addEventListener('touchstart', e => {
 
 
   function drawPista() {
+  function drawPista() {
     pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
 
     const dx = exit.x - player.x;
@@ -225,24 +226,34 @@ canvas.addEventListener('touchstart', e => {
 
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
-    const len = 150; // longitud de la pista
 
-    // Coordenadas finales desde el centro del jugador hacia la salida
-    const ex = cx + Math.cos(angle) * len;
-    const ey = cy + Math.sin(angle) * len;
+    const innerOffset = 40; // distancia desde el jugador donde empieza la pista
+    const radius = 160;     // hasta dónde llega
+    const angleWidth = Math.PI / 6; // apertura (más = más ancho el haz)
 
-    const gradient = pistaCtx.createLinearGradient(cx, cy, ex, ey);
-    gradient.addColorStop(0, 'rgba(0,255,0,0.4)');
+    const startAngle = angle - angleWidth;
+    const endAngle = angle + angleWidth;
+
+    // Coordenadas del centro desplazado (para que no empiece justo encima del jugador)
+    const arcX = cx + Math.cos(angle) * innerOffset;
+    const arcY = cy + Math.sin(angle) * innerOffset;
+
+    // Gradiente radial desde el centro del arco
+    const gradient = pistaCtx.createRadialGradient(
+        arcX, arcY, innerOffset,   // centro y radio inicial
+        arcX, arcY, radius         // centro y radio final
+    );
+    gradient.addColorStop(0, 'rgba(0,255,0,0.3)');
     gradient.addColorStop(1, 'rgba(0,255,0,0)');
 
     pistaCtx.fillStyle = gradient;
     pistaCtx.beginPath();
-    pistaCtx.moveTo(cx, cy);
-    pistaCtx.lineTo(ex + 10, ey + 10);
-    pistaCtx.lineTo(ex - 10, ey - 10);
+    pistaCtx.moveTo(arcX, arcY);
+    pistaCtx.arc(arcX, arcY, radius, startAngle, endAngle);
     pistaCtx.closePath();
     pistaCtx.fill();
-  }
+}
+
   
 
 // Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
