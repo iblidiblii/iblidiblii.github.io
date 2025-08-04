@@ -25,6 +25,8 @@
 <body>
 <canvas id="canvas"></canvas>
 <canvas id ="fog">hola</canvas>
+<canvas id="pista" style="position:absolute; top:0; left:0; pointer-events:none; z-index:3;"></canvas>
+  
 
 <script>
 const canvas = document.getElementById('canvas');
@@ -38,6 +40,13 @@ const fogCanvas = document.getElementById('fog');
 const fogCtx = fogCanvas.getContext('2d');
 fogCanvas.width = width;
 fogCanvas.height = height;
+
+
+const pistaCanvas = document.getElementById("pista");
+const pistaCtx = pistaCanvas.getContext("2d");
+pistaCanvas.width = width;
+pistaCanvas.height = height;
+
 
 const hintTime = 5000;
   
@@ -206,49 +215,48 @@ canvas.addEventListener('touchstart', e => {
   else if (x > width * 0.75) movePlayer(1, 0);
 });
 
+
+  function drawPista() {
+    pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
+
+    const dx = exit.x - player.x;
+    const dy = exit.y - player.y;
+    const angle = Math.atan2(dy, dx);
+
+    const cx = canvas.width / 2;
+    const cy = canvas.height / 2;
+    const len = 150; // longitud de la pista
+
+    // Coordenadas finales desde el centro del jugador hacia la salida
+    const ex = cx + Math.cos(angle) * len;
+    const ey = cy + Math.sin(angle) * len;
+
+    const gradient = pistaCtx.createLinearGradient(cx, cy, ex, ey);
+    gradient.addColorStop(0, 'rgba(0,255,0,0.4)');
+    gradient.addColorStop(1, 'rgba(0,255,0,0)');
+
+    pistaCtx.fillStyle = gradient;
+    pistaCtx.beginPath();
+    pistaCtx.moveTo(cx, cy);
+    pistaCtx.lineTo(ex + 10, ey + 10);
+    pistaCtx.lineTo(ex - 10, ey - 10);
+    pistaCtx.closePath();
+    pistaCtx.fill();
+  }
+  
+
 // Mostrar pista visual (cono con gradiente apuntando a la salida) cada 30 segundos
-setInterval(() => {
-  const dx = exit.x - player.x;
-  const dy = exit.y - player.y;
-  const angle = Math.atan2(dy, dx);
-
-  const playerScreenX = width / 2;
-  const playerScreenY = height / 2;
-
-  fogCtx.save();
-  fogCtx.translate(playerScreenX, playerScreenY);
-  fogCtx.rotate(angle);
-
-  // Crear gradiente verde hacia la salida
-  const gradient = fogCtx.createLinearGradient(0, 0, cellSize * 6, 0);
-  gradient.addColorStop(0, 'rgba(0,255,0,0.4)');
-  gradient.addColorStop(1, 'rgba(0,255,0,0)');
-
-  fogCtx.fillStyle = gradient;
-
-  const widthCone = cellSize * 2;
-  const lengthCone = cellSize * 6;
-
-  fogCtx.beginPath();
-  fogCtx.moveTo(0, -widthCone / 2);
-  fogCtx.lineTo(lengthCone, -widthCone / 4);
-  fogCtx.lineTo(lengthCone, widthCone / 4);
-  fogCtx.lineTo(0, widthCone / 2);
-  fogCtx.closePath();
-  fogCtx.fill();
-
-fogCtx.fillStyle = 'green';
-fogCtx.fillRect(-10, -10, 20, 20);
+function mostrarPista() {
+    drawPista();
+    navigator.vibrate?.([100, 100, 100]); // tres pulsos
   
+    setTimeout(() => {
+        pistaCtx.clearRect(0, 0, pistaCanvas.width, pistaCanvas.height);
+    }, 3000);
+}
 
-  
-  fogCtx.restore();
-  Debug.Log("pista");
-  // Limpiar la pista después de 1.5s (redibujar la niebla)
-  setTimeout(() => {
-    drawFog(player.x, player.y);
-  }, 1500);
-},hintTime);
+setInterval(mostrarPista, 5000); // cada 3 segundos
+
 
 
 
