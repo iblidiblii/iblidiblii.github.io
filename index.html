@@ -297,7 +297,7 @@ function animate() {
   cameraX += (player.x - cameraX) * speed;
   cameraY += (player.y - cameraY) * speed;
 
-  drawMaze(player.x, player.y);
+  drawMaze(cameraX, cameraY);
   requestAnimationFrame(animate);
 }
 animate();
