@@ -227,36 +227,28 @@ canvas.addEventListener('touchstart', e => {
     const cx = canvas.width / 2;
     const cy = canvas.height / 2;
 
-    const innerOffset = 40; // distancia desde el jugador
-    const radius = 160;     // radio total del haz
-    const angleWidth = Math.PI / 4; // apertura del haz (más = más ancho)
+    const innerOffset = 60; // dónde empieza el haz (más lejos del jugador)
+    const radius = 160;     // radio máximo del haz
+    const spread = Math.PI / 3; // apertura del haz
 
-    // Punto central desplazado donde empieza el haz
+    // Centro del haz, desplazado desde el jugador
     const arcX = cx + Math.cos(angle) * innerOffset;
     const arcY = cy + Math.sin(angle) * innerOffset;
 
-    // Crear un gradiente radial suave
+    // Gradiente radial desde el centro del haz
     const gradient = pistaCtx.createRadialGradient(
         arcX, arcY, radius * 0.2,
         arcX, arcY, radius
     );
-    gradient.addColorStop(0, 'rgba(0,255,0,0.3)');
-    gradient.addColorStop(1, 'rgba(0,255,0,0)');
+    gradient.addColorStop(0, 'rgba(245,255,0,0.25)');
+    gradient.addColorStop(1, 'rgba(245,255,0,0)');
 
     pistaCtx.fillStyle = gradient;
 
-    // Dibujar una forma de "cuarto de círculo difuminado"
+    // Solo pintamos un sector del arco (como un foco), sin líneas rectas
     pistaCtx.beginPath();
-    pistaCtx.moveTo(arcX, arcY);
-    pistaCtx.arc(arcX, arcY, radius, angle - angleWidth, angle + angleWidth, false);
-    
-    // Borde curvado de cierre en la parte interna
-    const backRadius = radius * 0.5;
-    const backAngle = angle + angleWidth;
-    const backX = arcX + Math.cos(backAngle) * backRadius;
-    const backY = arcY + Math.sin(backAngle) * backRadius;
-    pistaCtx.quadraticCurveTo(arcX, arcY, backX, backY);
-
+    pistaCtx.arc(arcX, arcY, radius, angle - spread / 2, angle + spread / 2, false);
+    pistaCtx.lineTo(arcX, arcY); // cerrar la forma al centro del arco
     pistaCtx.closePath();
     pistaCtx.fill();
   }
@@ -273,7 +265,7 @@ function mostrarPista() {
     }, 3000);
 }
 
-setInterval(mostrarPista, 5000); // cada 3 segundos
+setInterval(mostrarPista, hintTime); // cada 3 segundos
 
 
 
