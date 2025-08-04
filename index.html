@@ -264,23 +264,7 @@ function drawPista() {
 function mostrarPista() {
 
   if (mostrandoPista) {
-  const tiempo = performance.now() - pistaStartTime;
 
-  if (pistaFadeIn) {
-    pistaOpacity = Math.min(tiempo / 1000, 1); // fade in en 1 segundo
-    if (pistaOpacity >= 1) {
-      pistaFadeIn = false;
-      pistaStartTime = performance.now();
-    }
-  } else {
-    pistaOpacity = 1 - Math.min(tiempo / 1000, 1); // fade out en 1 segundo
-    if (pistaOpacity <= 0) {
-      mostrandoPista = false;
-      pistaOpacity = 0;
-    }
-  }
-}
-  
 
   
     drawPista();
